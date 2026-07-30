@@ -50,9 +50,18 @@ linhas), filtrada por atleta na hora de usar.
 | Colunas | Conteúdo |
 | --- | --- |
 | A–E | `DATA`, `Nº`, `ATLETA`, `DATA NASC`, `IDADE` |
-| T–AB | `TOR DIR/ESQ`, `QUA DIR/ESQ`, `IQT DIR/ESQ`, `SLB DIR/ESQ` — testes bilaterais (quadríceps, isquiotibiais…), aparentemente pra análise de assimetria |
+| T–AB | `TOR DIR/ESQ`, `QUA DIR/ESQ`, `IQT DIR/ESQ`, `SLB DIR/ESQ` — medidas bilaterais, pra análise de assimetria |
 | AC–AJ | `CMJ`, `SJ`, `EUR`, `REL %`, `DJ 30`, `RSI` — bateria de saltos |
 | AV em diante | `SJ_1`, `VMP SJ_1`, `SJ_2`, `VMP SJ_2`, `CARGA_1`, `VMP_1`, … até `CARGA_7`/`VMP_7` — o perfil carga-velocidade |
+
+**Siglas confirmadas** pelo contrato que o front definiu depois (30/07/2026):
+
+| Sigla | Significado |
+| --- | --- |
+| `TOR` | mobilidade de **tornozelo** — eu tinha chutado "torque", errado |
+| `QUA` | mobilidade de **quadril** — eu tinha chutado "quadríceps", errado |
+| `IQT` | amplitude de **isquiotibiais** ✓ |
+| `SLB` | ainda não decifrado; bilateral, em cm |
 
 Duas leituras importantes:
 
@@ -171,6 +180,12 @@ Numeradas pra facilitar a conversa com o cliente:
 9. **O relatório precisa sair em PDF** (pra mandar pro atleta) ou tela basta?
 10. **Migrar o histórico?** Os 3 anos de planilha entram no sistema ou começa do
     zero?
+11. **Como se mede a amplitude do movimento?** Surgiu ao implementar o contrato
+    do front, que manda `tempo` (segundos) e `repeticoes` em vez de velocidade.
+    Pra converter em m/s falta o deslocamento por repetição. Ele mede? É fixo por
+    exercício ou por atleta? Hoje está chutado em 0,5 m
+    (`DESLOCAMENTO_POR_CODIGO` em `src/lib/calculos.ts`).
+12. **O que é `SLB`?** Única sigla da planilha que continua sem tradução.
 
 ## Ressalva
 

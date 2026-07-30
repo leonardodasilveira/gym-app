@@ -1,23 +1,31 @@
 # gym-app
 
-MVP de gestão de treinos de academia.
+Acompanhamento de avaliações de performance (VBT) para o CT E Perform, no lugar
+da planilha de Excel usada hoje.
 
 Stack: **Next.js 16 (App Router) + TypeScript + Tailwind CSS 4 + Prisma 7 + SQLite**.
 
-> Status: scaffold. O modelo de dados e as telas ainda vão ser definidos.
+> **Status: MVP de demonstração.** O back está de pé (alunos, avaliações,
+> relatório) para o front ser montado em cima e o resultado ser mostrado ao
+> professor. Fórmulas e textos do relatório são provisórios — ver
+> [`docs/api.md`](docs/api.md).
+
+## Documentação
+
+| Arquivo | O que é |
+| --- | --- |
+| [`docs/api.md`](docs/api.md) | **contrato da API** — comece por aqui pra mexer no front |
+| [`docs/planilha-atual.md`](docs/planilha-atual.md) | como o professor trabalha hoje, e as dúvidas em aberto |
+| [`docs/vbt.md`](docs/vbt.md) | o que é Velocity Based Training, base conceitual |
 
 ## Rodando
 
 ```bash
 npm install
 cp .env.example .env    # DATABASE_URL apontando pro SQLite local
+npm run db:migrate      # cria prisma/dev.db e aplica as migrations
+npm run db:seed         # 3 alunos com histórico fictício
 npm run dev             # http://localhost:3000
-```
-
-O banco só existe depois que houver models em `prisma/schema.prisma`:
-
-```bash
-npm run db:migrate      # cria prisma/dev.db e aplica a migration
 ```
 
 ## Scripts
@@ -30,6 +38,7 @@ npm run db:migrate      # cria prisma/dev.db e aplica a migration
 | `npm run lint` | ESLint |
 | `npm run db:migrate` | gera e aplica migration a partir do `schema.prisma` |
 | `npm run db:reset` | apaga o banco e reaplica todas as migrations |
+| `npm run db:seed` | popula alunos e avaliações fictícios |
 | `npm run db:studio` | abre o Prisma Studio pra inspecionar o banco |
 
 `prisma generate` roda sozinho no `postinstall`, e o client sai em
@@ -38,10 +47,15 @@ npm run db:migrate      # cria prisma/dev.db e aplica a migration
 ## Estrutura
 
 ```
-prisma/schema.prisma    modelo de dados (vazio por enquanto)
-prisma.config.ts        config do Prisma CLI
+prisma/schema.prisma    modelo de dados: Aluno, Avaliacao, Medida, Teste, Tentativa
+prisma/seed.ts          dados fictícios pra demo
 src/lib/prisma.ts       instância do PrismaClient (singleton p/ o dev server)
-src/app/                rotas do App Router — páginas e, futuramente, /api
+src/lib/schemas.ts      contrato de entrada (Zod) — tipos compartilhados com o front
+src/lib/http.ts         helpers de resposta e tradução de erro
+src/lib/avaliacoes.ts   conversão entre o DTO do front e as tabelas
+src/lib/calculos.ts     ⚠️ curva, perfil e score — tudo provisório
+src/lib/textos.ts       ⚠️ textos do relatório — lorem ipsum
+src/app/api/            route handlers
 ```
 
 O banco é um arquivo (`prisma/dev.db`) e **não** vai pro git — cada pessoa gera o
