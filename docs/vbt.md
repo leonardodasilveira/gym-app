@@ -6,6 +6,12 @@ pra todo mundo falar a mesma língua antes de modelar.
 **Situação atual do cliente:** o acompanhamento é feito em planilhas de Excel.
 O MVP existe pra resolver essa dor específica — não pra cobrir VBT inteiro.
 
+> ⚠️ **Leia antes o [`planilha-atual.md`](planilha-atual.md).** Este documento aqui
+> descreve VBT como método, de forma geral. O que o cliente realmente faz é um
+> recorte bem menor: **avaliação periódica** (a cada 4–8 semanas), não
+> acompanhamento repetição a repetição durante o treino. Onde os dois divergirem,
+> vale o `planilha-atual.md` — ele foi escrito a partir do material real.
+
 ---
 
 ## A ideia central
@@ -32,6 +38,9 @@ Secundárias: ROM (amplitude), potência média/pico, força estimada.
 
 > **A métrica correta depende do exercício.** Isso é configuração por exercício,
 > não constante global do sistema.
+
+> ✅ **O cliente usa VMP.** As colunas da planilha são literalmente `VMP SJ_1`,
+> `VMP_1`, `VMP_2`… Escola espanhola.
 
 ## As três aplicações práticas
 
@@ -102,39 +111,38 @@ mais intenção. É argumento de UX, não só de relatório.
 
 ## O que isso muda no modelo de dados
 
+Aqui é onde a teoria geral e o caso do cliente se separam. Vale conhecer os dois.
+
+### No VBT "cheio" (acompanhamento durante o treino)
+
 **A unidade atômica passa a ser a repetição, não a série.**
 
-Num app de academia comum, `série = carga × reps` resolve. Em VBT cada repetição
-precisa ser guardada individualmente (velocidade, carga, ROM, ordem), porque
-perda de velocidade, rep mais rápida e LVP só existem no nível da rep. Isso
-significa volume de dados uma ordem de grandeza maior, e agregações (rep mais
-rápida da série, % de perda, 1RM estimado) que a gente vai ter que decidir se
-calcula na hora ou materializa.
+Num app de academia comum, `série = carga × reps` resolve. Em VBT de treino cada
+repetição precisa ser guardada individualmente (velocidade, carga, ROM, ordem),
+porque perda de velocidade, rep mais rápida e LVP só existem no nível da rep.
+Isso significa volume de dados uma ordem de grandeza maior, e agregações (rep
+mais rápida da série, % de perda, 1RM estimado) que teriam que ser calculadas na
+hora ou materializadas.
 
-Entidades que não existem no app tradicional:
+### No caso do cliente (avaliação periódica) — o que vale pro MVP
 
-- **Perfil carga-velocidade** por atleta × exercício (data, coeficientes da reta,
-  qualidade do ajuste).
-- **MVT** por atleta × exercício.
-- **Prescrição por alvo de velocidade / corte de perda**, em vez de carga fixa.
-- **Origem da medição** (dispositivo/fonte) em cada repetição.
+**A unidade atômica é a avaliação**, e dentro dela um punhado de pontos
+`(carga, velocidade)`. Ver [`planilha-atual.md`](planilha-atual.md) para o
+detalhe, mas em resumo:
 
-## Perguntas em aberto com o cliente
+- ~21 avaliações em 3 anos por atleta, a cada 4–8 semanas.
+- Cada avaliação tem de 4 a 8 pontos de carga.
+- Volume total irrisório (~170 medições por atleta em 3 anos).
+- Sem ingestão em tempo real, sem integração ao vivo com encoder.
 
-Estas mudam a arquitetura, não só a tela:
+Ou seja: **é um app de avaliação e relatório, não de execução de treino.** Boa
+parte da complexidade que eu antecipei acima simplesmente não se aplica.
 
-1. **Qual dispositivo?** Tem API, exporta CSV, ou o professor digita na mão?
-   Define a arquitetura mais do que qualquer outra coisa.
-2. **Tempo real ou pós-treino?** Feedback rep a rep durante a série é um app;
-   importar a sessão depois é outro, bem mais simples.
-3. **Quem é o usuário?** Painel do treinador, app do aluno, ou os dois?
-4. **LVP/1RM estimado, ou só perda de velocidade?** O primeiro exige teste
-   incremental e regressão; o segundo é mais direto e já entrega boa parte do
-   valor. Pra um MVP que substitui planilha, começar pelo segundo é defensável.
-5. **Individual ou turma?** Acompanhar 15 alunos simultâneos numa sala muda a UI
-   inteira.
-6. **Como é a planilha hoje?** Ver o Excel atual do cliente provavelmente responde
-   metade das perguntas acima de graça.
+Entidades que aparecem de qualquer forma:
+
+- **Perfil carga-velocidade** por atleta × data (pontos medidos + coeficientes da
+  reta + qualidade do ajuste).
+- **Origem da medição** (dispositivo/fonte), se houver mais de uma.
 
 ## Ressalva
 
