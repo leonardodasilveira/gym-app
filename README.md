@@ -50,6 +50,7 @@ npm run dev             # http://localhost:3000
 prisma/schema.prisma    modelo de dados: Aluno, Avaliacao, Medida, Teste, Tentativa
 prisma/seed.ts          dados fictícios pra demo
 src/lib/prisma.ts       instância do PrismaClient (singleton p/ o dev server)
+src/lib/medidas.ts      catálogo de medidas: código, sigla (SLB ESQ), rótulo, lado
 src/lib/schemas.ts      contrato de entrada (Zod) — tipos compartilhados com o front
 src/lib/http.ts         helpers de resposta e tradução de erro
 src/lib/avaliacoes.ts   conversão entre o DTO do front e as tabelas

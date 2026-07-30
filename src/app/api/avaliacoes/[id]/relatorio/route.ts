@@ -1,4 +1,9 @@
-import { avaliacaoCompleta, formatarData, linhasParaMedidas } from "@/lib/avaliacoes";
+import {
+  avaliacaoCompleta,
+  formatarData,
+  linhasParaMedidas,
+  linhasParaMedidasDetalhadas,
+} from "@/lib/avaliacoes";
 import {
   ajustarCurva,
   calcularScore,
@@ -66,6 +71,8 @@ export const GET = handler(async (_request, { params }: Context) => {
       totalAvaliacoes: historico.length,
     },
     medidas: linhasParaMedidas(avaliacao.medidas),
+    // Mesmo conteudo, achatado e com a sigla da planilha pronta pra imprimir.
+    medidasDetalhadas: linhasParaMedidasDetalhadas(avaliacao.medidas),
     curva: {
       pontos,
       cargaMaximaKg: pontos.at(-1)?.cargaKg ?? null,

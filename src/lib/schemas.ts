@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { ChaveMedida } from "@/lib/medidas";
+
 /**
  * Contrato da API, espelhando os tipos que o front definiu (CriarAvaliacaoDTO).
  * O front pode importar os tipos daqui pra nao duplicar regra de validacao:
@@ -27,27 +29,11 @@ const medidaSimples = z.object({
 });
 
 /**
- * Chaves do objeto `medidas` -> codigo guardado no banco.
- * Acrescentar medida nova = uma linha aqui + uma no schema de entrada.
+ * O objeto `medidas` fica escrito a mao de proposito: e o contrato tipado com o
+ * front, e gerar o schema dinamicamente perderia os tipos estaticos. O catalogo
+ * (src/lib/medidas.ts) manda em todo o resto — codigo, sigla, rotulo, lado — e o
+ * check no fim deste arquivo garante que os dois nao saiam de sincronia.
  */
-export const CODIGO_POR_MEDIDA = {
-  mobilidadeTornozelo: "MOBILIDADE_TORNOZELO",
-  mobilidadeQuadril: "MOBILIDADE_QUADRIL",
-  amplitudeIsquiotibiais: "AMPLITUDE_ISQUIOTIBIAIS",
-  slb: "SLB",
-  cmj: "CMJ",
-} as const;
-
-export type ChaveMedida = keyof typeof CODIGO_POR_MEDIDA;
-
-/** Medidas que tem lado direito/esquerdo (o resto e valor unico). */
-export const MEDIDAS_BILATERAIS = [
-  "mobilidadeTornozelo",
-  "mobilidadeQuadril",
-  "amplitudeIsquiotibiais",
-  "slb",
-] as const satisfies readonly ChaveMedida[];
-
 const medidasSchema = z.object({
   mobilidadeTornozelo: medidaBilateral,
   mobilidadeQuadril: medidaBilateral,
@@ -117,3 +103,14 @@ export type TesteDTO = z.infer<typeof testeSchema>;
 export type TentativaDTO = z.infer<typeof tentativaSchema>;
 export type CriarAlunoDTO = z.infer<typeof criarAlunoSchema>;
 export type AtualizarAlunoDTO = z.infer<typeof atualizarAlunoSchema>;
+
+// --- sincronia entre o catalogo e este schema ------------------------------
+
+type Igual<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+
+/**
+ * Quebra a compilacao se alguem acrescentar uma medida no catalogo e esquecer
+ * de acrescentar no `medidasSchema` acima (ou vice-versa).
+ */
+const _chavesEmSincronia: Igual<ChaveMedida, keyof MedidasDTO> = true;
+void _chavesEmSincronia;

@@ -26,10 +26,53 @@ import type { CriarAvaliacaoDTO, CriarAlunoDTO } from "@/lib/schemas";
 }
 ```
 
+## Catálogo de medidas
+
+`GET /medidas` devolve a lista de medidas com código, sigla da planilha e rótulo.
+Estático, não consulta o banco — dá pra buscar uma vez e cachear.
+
+**Use isso em vez de chumbar rótulo no front.** As siglas (`SLB ESQ`, `TOR DIR`)
+são o vocabulário do professor: é por elas que ele reconhece a medida no
+relatório, então elas precisam bater com a planilha dele.
+
+```jsonc
+{
+  "sufixoLado": { "direito": "DIR", "esquerdo": "ESQ" },
+  "medidas": [
+    {
+      "chave": "mobilidadeTornozelo",       // chave no objeto `medidas` do DTO
+      "codigo": "MOBILIDADE_TORNOZELO",
+      "sigla": "TOR",
+      "nome": "Mobilidade de tornozelo",
+      "unidade": "cm",
+      "bilateral": true,
+      "siglas": { "direito": "TOR DIR", "esquerdo": "TOR ESQ" }
+    },
+    {
+      "chave": "cmj",
+      "codigo": "CMJ",
+      "sigla": "CMJ",
+      "nome": "Counter Movement Jump",
+      "unidade": "cm",
+      "bilateral": false,
+      "siglas": { "valor": "CMJ" }          // medida simples: sem lado
+    }
+  ]
+}
+```
+
+Dá pra montar o formulário de avaliação inteiro a partir daqui: `bilateral`
+decide se são dois campos ou um, e `chave` diz onde o valor entra no DTO.
+
+> Fonte única: `src/lib/medidas.ts`. Acrescentar medida é uma entrada lá + o
+> campo no `medidasSchema`; se esquecer a segunda parte, o `npm run typecheck`
+> quebra de propósito.
+
 ## Alunos
 
 | Método | Rota | Descrição |
 | --- | --- | --- |
+| `GET` | `/medidas` | catálogo de medidas (estático) |
 | `GET` | `/alunos?ativo=true&busca=ana` | lista alunos com `totalAvaliacoes` |
 | `POST` | `/alunos` | cria aluno |
 | `GET` | `/alunos/:id` | aluno + lista resumida das avaliações |
@@ -104,6 +147,18 @@ Tudo que o relatório precisa, numa chamada. Resposta abreviada:
   "periodo": { "de": "2025-07-10", "ate": "2026-07-30", "totalAvaliacoes": 9 },
 
   "medidas": { /* mesmo formato do DTO */ },
+
+  // mesmo conteúdo, achatado e com a sigla do professor pronta pra imprimir
+  "medidasDetalhadas": [
+    {
+      "chave": "slb", "codigo": "SLB", "sigla": "SLB", "nome": "SLB",
+      "unidade": "cm", "bilateral": true,
+      "valores": [
+        { "sigla": "SLB DIR", "rotulo": "SLB (direito)",  "lado": "direito",  "valor": 32.5 },
+        { "sigla": "SLB ESQ", "rotulo": "SLB (esquerdo)", "lado": "esquerdo", "valor": 31.9 }
+      ]
+    }
+  ],
 
   "curva": {
     "pontos": [

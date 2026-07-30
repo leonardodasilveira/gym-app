@@ -1,9 +1,11 @@
 import {
-  CODIGO_POR_MEDIDA,
-  MEDIDAS_BILATERAIS,
+  MEDIDAS,
+  medidaPorCodigo,
+  siglaComLado,
   type ChaveMedida,
-  type MedidasDTO,
-} from "@/lib/schemas";
+  type Lado,
+} from "@/lib/medidas";
+import type { MedidasDTO } from "@/lib/schemas";
 
 /**
  * Conversao entre o formato do contrato do front (objeto `medidas` com chaves
@@ -18,32 +20,29 @@ type LinhaMedida = {
   valor: number | null;
 };
 
-const ehBilateral = (chave: ChaveMedida): boolean =>
-  (MEDIDAS_BILATERAIS as readonly string[]).includes(chave);
-
-/** `medidas` do DTO -> linhas prontas pro `createMany` do Prisma. */
+/** `medidas` do DTO -> linhas prontas pro `create` do Prisma. */
 export function medidasParaLinhas(medidas: MedidasDTO): LinhaMedida[] {
-  return (Object.keys(CODIGO_POR_MEDIDA) as ChaveMedida[]).map((chave) => {
-    const codigo = CODIGO_POR_MEDIDA[chave];
+  return MEDIDAS.map((definicao) => {
+    const entrada = medidas[definicao.chave as keyof MedidasDTO];
 
-    if (ehBilateral(chave)) {
-      const medida = medidas[chave] as { unidade: string; direito: number | null; esquerdo: number | null };
+    if (definicao.bilateral) {
+      const bilateral = entrada as { unidade: string; direito: number | null; esquerdo: number | null };
       return {
-        codigo,
-        unidade: medida.unidade,
-        direito: medida.direito,
-        esquerdo: medida.esquerdo,
+        codigo: definicao.codigo,
+        unidade: bilateral.unidade,
+        direito: bilateral.direito,
+        esquerdo: bilateral.esquerdo,
         valor: null,
       };
     }
 
-    const medida = medidas[chave] as { unidade: string; valor: number | null };
+    const simples = entrada as { unidade: string; valor: number | null };
     return {
-      codigo,
-      unidade: medida.unidade,
+      codigo: definicao.codigo,
+      unidade: simples.unidade,
       direito: null,
       esquerdo: null,
-      valor: medida.valor,
+      valor: simples.valor,
     };
   });
 }
@@ -52,22 +51,76 @@ export function medidasParaLinhas(medidas: MedidasDTO): LinhaMedida[] {
 export function linhasParaMedidas(linhas: LinhaMedida[]): MedidasDTO {
   const porCodigo = new Map(linhas.map((linha) => [linha.codigo, linha]));
 
-  const montar = (chave: ChaveMedida) => {
-    const linha = porCodigo.get(CODIGO_POR_MEDIDA[chave]);
-    const unidade = (linha?.unidade ?? "cm") as "cm";
+  const entradas = MEDIDAS.map((definicao) => {
+    const linha = porCodigo.get(definicao.codigo);
+    const unidade = (linha?.unidade ?? definicao.unidade) as "cm";
 
-    return ehBilateral(chave)
+    const valor = definicao.bilateral
       ? { unidade, direito: linha?.direito ?? null, esquerdo: linha?.esquerdo ?? null }
       : { unidade, valor: linha?.valor ?? null };
-  };
 
-  return {
-    mobilidadeTornozelo: montar("mobilidadeTornozelo"),
-    mobilidadeQuadril: montar("mobilidadeQuadril"),
-    amplitudeIsquiotibiais: montar("amplitudeIsquiotibiais"),
-    slb: montar("slb"),
-    cmj: montar("cmj"),
-  } as MedidasDTO;
+    return [definicao.chave, valor] as const;
+  });
+
+  return Object.fromEntries(entradas) as MedidasDTO;
+}
+
+export type MedidaDetalhada = {
+  chave: ChaveMedida;
+  codigo: string;
+  sigla: string;
+  nome: string;
+  unidade: string;
+  bilateral: boolean;
+  /** Uma entrada por lado, ou uma so quando a medida e de valor unico. */
+  valores: { sigla: string; rotulo: string; lado: Lado | null; valor: number | null }[];
+};
+
+/**
+ * Formato achatado pro relatorio: cada valor ja vem com a sigla do professor
+ * (`SLB ESQ`) pronta pra imprimir, sem o front precisar montar rotulo.
+ */
+export function linhasParaMedidasDetalhadas(
+  linhas: LinhaMedida[],
+): MedidaDetalhada[] {
+  const porCodigo = new Map(linhas.map((linha) => [linha.codigo, linha]));
+
+  return MEDIDAS.map((definicao) => {
+    const linha = porCodigo.get(definicao.codigo);
+
+    const valores = definicao.bilateral
+      ? (["direito", "esquerdo"] as const).map((lado) => ({
+          sigla: siglaComLado(definicao.sigla, lado),
+          rotulo: `${definicao.nome} (${lado})`,
+          lado: lado as Lado,
+          valor: linha?.[lado] ?? null,
+        }))
+      : [
+          {
+            sigla: definicao.sigla,
+            rotulo: definicao.nome,
+            lado: null,
+            valor: linha?.valor ?? null,
+          },
+        ];
+
+    return {
+      chave: definicao.chave,
+      codigo: definicao.codigo,
+      sigla: definicao.sigla,
+      nome: definicao.nome,
+      unidade: linha?.unidade ?? definicao.unidade,
+      bilateral: definicao.bilateral,
+      valores,
+    };
+  });
+}
+
+/** Sigla da planilha a partir do codigo persistido — `SLB` + lado. */
+export function siglaDaMedida(codigo: string, lado?: Lado): string {
+  const definicao = medidaPorCodigo(codigo);
+  const sigla = definicao?.sigla ?? codigo;
+  return lado ? siglaComLado(sigla, lado) : sigla;
 }
 
 /** "2026-07-30" -> Date em meia-noite UTC (sem surpresa de fuso). */
