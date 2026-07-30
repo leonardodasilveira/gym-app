@@ -1,0 +1,12 @@
+// Schema do banco. Os models entram aqui conforme a especificacao.
+// Depois de mexer neste arquivo: npm run db:migrate
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
