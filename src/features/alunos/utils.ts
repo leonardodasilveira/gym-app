@@ -5,6 +5,7 @@ import type {
   AvaliacaoCompleta,
   StatusFiltro,
 } from "@/features/alunos/tipos";
+import { arredondar } from "@/features/shared/formato";
 
 const MARCAS_DIACRITICAS = /[̀-ͯ]/g;
 
@@ -95,4 +96,43 @@ export function valorDaColuna(
   return (medida as { direito: number | null; esquerdo: number | null })[
     coluna.lado
   ];
+}
+
+/** Uma linha por coluna de medida, comparando duas avaliacoes. */
+export type LinhaComparacao = {
+  rotulo: string;
+  nomeCompleto: string;
+  unidade: string;
+  anterior: number | null;
+  atual: number | null;
+  /** null quando `anterior` ou `atual` (ou ambos) sao null — nunca 0 nesse caso. */
+  delta: number | null;
+};
+
+/**
+ * Compara duas avaliacoes coluna a coluna. Todas as 9 linhas sempre saem,
+ * mesmo com os dois lados nulos — a ausencia e informacao para o professor.
+ * Delta so e calculado quando os dois valores sao numeros (0 incluido).
+ */
+export function montarLinhasComparacao(
+  atual: AvaliacaoCompleta,
+  anterior: AvaliacaoCompleta,
+): LinhaComparacao[] {
+  return colunasDeMedida().map((coluna) => {
+    const valorAtual = valorDaColuna(atual, coluna);
+    const valorAnterior = valorDaColuna(anterior, coluna);
+    const delta =
+      valorAtual !== null && valorAnterior !== null
+        ? arredondar(valorAtual - valorAnterior)
+        : null;
+
+    return {
+      rotulo: coluna.rotulo,
+      nomeCompleto: coluna.nomeCompleto,
+      unidade: coluna.unidade,
+      anterior: valorAnterior,
+      atual: valorAtual,
+      delta,
+    };
+  });
 }

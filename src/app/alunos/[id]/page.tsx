@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/ui/empty-state";
 import { AlunoCabecalho } from "@/features/alunos/AlunoCabecalho";
+import { ComparacaoAvaliacoes } from "@/features/alunos/ComparacaoAvaliacoes";
 import { HistoricoAvaliacoes } from "@/features/alunos/HistoricoAvaliacoes";
+import { TestesAvaliacao } from "@/features/alunos/TestesAvaliacao";
 import type { AlunoDetalhe, AvaliacaoCompleta } from "@/features/alunos/tipos";
 import { apiFetch } from "@/features/shared/api";
 import { origemAtual } from "@/features/shared/origem";
@@ -68,7 +70,24 @@ export default async function AlunoDetalhePage({
           <EmptyState titulo="Nenhuma avaliação registrada ainda" />
         </div>
       ) : (
-        <HistoricoAvaliacoes avaliacoes={avaliacoes} nomeAluno={aluno.nome} />
+        <>
+          {avaliacoes.length >= 2 ? (
+            <ComparacaoAvaliacoes atual={avaliacoes[0]} anterior={avaliacoes[1]} />
+          ) : (
+            <section aria-labelledby="comparacao-heading" className="mt-8">
+              <h2 id="comparacao-heading" className="text-lg font-semibold">
+                Comparação com a avaliação anterior
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Esta é a primeira avaliação — ainda não há comparação.
+              </p>
+            </section>
+          )}
+
+          <HistoricoAvaliacoes avaliacoes={avaliacoes} nomeAluno={aluno.nome} />
+
+          <TestesAvaliacao avaliacao={avaliacoes[0]} />
+        </>
       )}
     </main>
   );
