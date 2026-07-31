@@ -1,4 +1,10 @@
-import type { AlunoResumo, StatusFiltro } from "@/features/alunos/tipos";
+import { MEDIDAS, siglaComLado, type Lado } from "@/lib/medidas";
+
+import type {
+  AlunoResumo,
+  AvaliacaoCompleta,
+  StatusFiltro,
+} from "@/features/alunos/tipos";
 
 const MARCAS_DIACRITICAS = /[̀-ͯ]/g;
 
@@ -37,4 +43,56 @@ export function filtrarAlunos(
 
     return true;
   });
+}
+
+/**
+ * Uma coluna por lado para medida bilateral, uma coluna para medida simples.
+ * Sempre derivado de MEDIDAS, na ordem do catalogo — nunca escrito a mao.
+ */
+export type ColunaMedida = {
+  chave: (typeof MEDIDAS)[number]["chave"];
+  lado: Lado | null;
+  rotulo: string;
+  nomeCompleto: string;
+  unidade: string;
+};
+
+export function colunasDeMedida(): ColunaMedida[] {
+  return MEDIDAS.flatMap((definicao): ColunaMedida[] => {
+    if (definicao.bilateral) {
+      return (["direito", "esquerdo"] as const).map((lado) => ({
+        chave: definicao.chave,
+        lado,
+        rotulo: siglaComLado(definicao.sigla, lado),
+        nomeCompleto: `${definicao.nome} (${lado})`,
+        unidade: definicao.unidade,
+      }));
+    }
+
+    return [
+      {
+        chave: definicao.chave,
+        lado: null,
+        rotulo: definicao.sigla,
+        nomeCompleto: definicao.nome,
+        unidade: definicao.unidade,
+      },
+    ];
+  });
+}
+
+/** Valor de uma coluna numa avaliacao — null quando nao medido. */
+export function valorDaColuna(
+  avaliacao: AvaliacaoCompleta,
+  coluna: ColunaMedida,
+): number | null {
+  const medida = avaliacao.medidas[coluna.chave];
+
+  if (coluna.lado === null) {
+    return (medida as { valor: number | null }).valor;
+  }
+
+  return (medida as { direito: number | null; esquerdo: number | null })[
+    coluna.lado
+  ];
 }

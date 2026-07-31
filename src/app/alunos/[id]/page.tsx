@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { EmptyState } from "@/components/ui/empty-state";
 import { AlunoCabecalho } from "@/features/alunos/AlunoCabecalho";
+import { HistoricoAvaliacoes } from "@/features/alunos/HistoricoAvaliacoes";
 import type { AlunoDetalhe, AvaliacaoCompleta } from "@/features/alunos/tipos";
 import { apiFetch } from "@/features/shared/api";
 import { origemAtual } from "@/features/shared/origem";
@@ -61,9 +63,13 @@ export default async function AlunoDetalhePage({
         />
       </div>
 
-      <p className="mt-8 text-sm text-muted-foreground">
-        {avaliacoes.length} avaliação(ões) carregada(s) para o histórico.
-      </p>
+      {avaliacoes.length === 0 ? (
+        <div className="mt-8">
+          <EmptyState titulo="Nenhuma avaliação registrada ainda" />
+        </div>
+      ) : (
+        <HistoricoAvaliacoes avaliacoes={avaliacoes} nomeAluno={aluno.nome} />
+      )}
     </main>
   );
 }
