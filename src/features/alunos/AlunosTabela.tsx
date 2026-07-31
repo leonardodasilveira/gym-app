@@ -26,7 +26,9 @@ export function AlunosTabela({ alunos }: { alunos: AlunoResumo[] }) {
       <TableBody>
         {alunos.map((aluno) => (
           <TableRow key={aluno.id}>
-            <TableCell className="font-medium">{aluno.nome}</TableCell>
+            <TableCell className="whitespace-normal break-words font-medium">
+              {aluno.nome}
+            </TableCell>
             <TableCell>
               <Badge variant={aluno.ativo ? "default" : "secondary"}>
                 {aluno.ativo ? "Ativo" : "Inativo"}

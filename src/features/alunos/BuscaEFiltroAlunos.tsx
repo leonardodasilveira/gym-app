@@ -73,7 +73,7 @@ export function BuscaEFiltroAlunos({
         <div
           role="group"
           aria-label="Filtrar por status"
-          className="flex gap-2"
+          className="flex flex-wrap gap-2"
         >
           {OPCOES_STATUS.map((opcao) => (
             <Button
@@ -89,18 +89,20 @@ export function BuscaEFiltroAlunos({
         </div>
       </div>
 
-      {filtrados.length === 0 ? (
-        <EmptyState
-          titulo="Nenhum resultado encontrado"
-          descricao={
-            busca.trim()
-              ? `Não encontramos alunos para "${busca.trim()}".`
-              : "Ajuste os filtros e tente novamente."
-          }
-        />
-      ) : (
-        <AlunosTabela alunos={filtrados} />
-      )}
+      <div aria-live="polite" aria-atomic="true">
+        {filtrados.length === 0 ? (
+          <EmptyState
+            titulo="Nenhum resultado encontrado"
+            descricao={
+              busca.trim()
+                ? `Não encontramos alunos para "${busca.trim()}".`
+                : "Ajuste os filtros e tente novamente."
+            }
+          />
+        ) : (
+          <AlunosTabela alunos={filtrados} />
+        )}
+      </div>
     </div>
   );
 }
