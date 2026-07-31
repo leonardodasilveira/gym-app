@@ -7,6 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ValorOuAusente } from "@/components/ui/valor-ausente";
 import type { AvaliacaoCompleta } from "@/features/alunos/tipos";
 import { colunasDeMedida, valorDaColuna } from "@/features/alunos/utils";
 import {
@@ -59,7 +60,10 @@ export function HistoricoAvaliacoes({
                 </TableHead>
                 {colunas.map((coluna) => (
                   <TableCell key={`${coluna.chave}-${coluna.lado ?? "unico"}`}>
-                    {formatarNumeroOuTraco(valorDaColuna(avaliacao, coluna))}
+                    <ValorOuAusente
+                      valor={valorDaColuna(avaliacao, coluna)}
+                      formatar={formatarNumeroOuTraco}
+                    />
                   </TableCell>
                 ))}
               </TableRow>

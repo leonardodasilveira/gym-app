@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ValorOuAusente } from "@/components/ui/valor-ausente";
 import type { AvaliacaoCompleta } from "@/features/alunos/tipos";
 import { formatarData, formatarNumeroOuTraco } from "@/features/shared/formato";
 
@@ -63,10 +64,16 @@ export function TestesAvaliacao({
                           {tentativa.repeticoes}
                         </TableCell>
                         <TableCell className="text-right">
-                          {formatarNumeroOuTraco(tentativa.carga.valor)}
+                          <ValorOuAusente
+                            valor={tentativa.carga.valor}
+                            formatar={formatarNumeroOuTraco}
+                          />
                         </TableCell>
                         <TableCell className="text-right">
-                          {formatarNumeroOuTraco(tentativa.tempo.valor)}
+                          <ValorOuAusente
+                            valor={tentativa.tempo.valor}
+                            formatar={formatarNumeroOuTraco}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}

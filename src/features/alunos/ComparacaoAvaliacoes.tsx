@@ -7,6 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ValorOuAusente } from "@/components/ui/valor-ausente";
 import type { AvaliacaoCompleta } from "@/features/alunos/tipos";
 import { montarLinhasComparacao } from "@/features/alunos/utils";
 import {
@@ -71,10 +72,16 @@ export function ComparacaoAvaliacoes({
                   </span>
                 </TableHead>
                 <TableCell className="text-right">
-                  {formatarNumeroOuTraco(linha.anterior)}
+                  <ValorOuAusente
+                    valor={linha.anterior}
+                    formatar={formatarNumeroOuTraco}
+                  />
                 </TableCell>
                 <TableCell className="text-right">
-                  {formatarNumeroOuTraco(linha.atual)}
+                  <ValorOuAusente
+                    valor={linha.atual}
+                    formatar={formatarNumeroOuTraco}
+                  />
                 </TableCell>
                 <TableCell className="text-right">
                   {linha.delta === 0 ? (
@@ -82,7 +89,11 @@ export function ComparacaoAvaliacoes({
                       {formatarDeltaOuTraco(linha.delta)}
                     </span>
                   ) : (
-                    formatarDeltaOuTraco(linha.delta)
+                    <ValorOuAusente
+                      valor={linha.delta}
+                      formatar={formatarDeltaOuTraco}
+                      textoAusente="sem comparação"
+                    />
                   )}
                 </TableCell>
               </TableRow>

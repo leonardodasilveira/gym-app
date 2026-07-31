@@ -46,17 +46,29 @@ export function filtrarAlunos(
   });
 }
 
-/**
- * Uma coluna por lado para medida bilateral, uma coluna para medida simples.
- * Sempre derivado de MEDIDAS, na ordem do catalogo — nunca escrito a mao.
- */
-export type ColunaMedida = {
-  chave: (typeof MEDIDAS)[number]["chave"];
-  lado: Lado | null;
+type ColunaMedidaBase = {
   rotulo: string;
   nomeCompleto: string;
   unidade: string;
 };
+
+/**
+ * Uma coluna por lado para medida bilateral, uma coluna para medida simples.
+ * Sempre derivado de MEDIDAS, na ordem do catalogo — nunca escrito a mao.
+ *
+ * Uniao discriminada por `lado`: cada ramo restringe `chave` as unicas
+ * chaves de MEDIDAS daquele formato, entao `avaliacao.medidas[chave]`
+ * resolve para um tipo unico (nunca a uniao dos 5 formatos) sem `as`.
+ */
+export type ColunaMedida =
+  | (ColunaMedidaBase & {
+      chave: Extract<(typeof MEDIDAS)[number], { bilateral: true }>["chave"];
+      lado: Lado;
+    })
+  | (ColunaMedidaBase & {
+      chave: Extract<(typeof MEDIDAS)[number], { bilateral: false }>["chave"];
+      lado: null;
+    });
 
 export function colunasDeMedida(): ColunaMedida[] {
   return MEDIDAS.flatMap((definicao): ColunaMedida[] => {
@@ -87,15 +99,11 @@ export function valorDaColuna(
   avaliacao: AvaliacaoCompleta,
   coluna: ColunaMedida,
 ): number | null {
-  const medida = avaliacao.medidas[coluna.chave];
-
   if (coluna.lado === null) {
-    return (medida as { valor: number | null }).valor;
+    return avaliacao.medidas[coluna.chave].valor;
   }
 
-  return (medida as { direito: number | null; esquerdo: number | null })[
-    coluna.lado
-  ];
+  return avaliacao.medidas[coluna.chave][coluna.lado];
 }
 
 /** Uma linha por coluna de medida, comparando duas avaliacoes. */

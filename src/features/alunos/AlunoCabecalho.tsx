@@ -48,14 +48,16 @@ export function AlunoCabecalho({
                 </dt>
                 <dd className="text-base font-medium">{totalAvaliacoes}</dd>
               </div>
-              <div>
-                <dt className="text-sm text-muted-foreground">
-                  Avaliação mais recente
-                </dt>
-                <dd className="text-base font-medium">
-                  {dataMaisRecente ? formatarData(dataMaisRecente) : "—"}
-                </dd>
-              </div>
+              {dataMaisRecente !== null ? (
+                <div>
+                  <dt className="text-sm text-muted-foreground">
+                    Avaliação mais recente
+                  </dt>
+                  <dd className="text-base font-medium">
+                    {formatarData(dataMaisRecente)}
+                  </dd>
+                </div>
+              ) : null}
             </dl>
           </CardContent>
         </Card>
