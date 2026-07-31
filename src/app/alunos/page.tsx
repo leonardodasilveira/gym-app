@@ -1,21 +1,9 @@
-import { headers } from "next/headers";
-
 import { EmptyState } from "@/components/ui/empty-state";
 import { BuscaEFiltroAlunos } from "@/features/alunos/BuscaEFiltroAlunos";
 import type { AlunoResumo } from "@/features/alunos/tipos";
 import { apiFetch } from "@/features/shared/api";
+import { origemAtual } from "@/features/shared/origem";
 import { paraStatusFiltro } from "@/features/alunos/utils";
-
-/**
- * Resolve a origem absoluta a partir do host da requisicao. So usado aqui —
- * quando uma segunda pagina precisar do mesmo, promove para features/shared.
- */
-async function origemAtual() {
-  const cabecalhos = await headers();
-  const host = cabecalhos.get("host");
-  const protocolo = cabecalhos.get("x-forwarded-proto") ?? "http";
-  return `${protocolo}://${host}`;
-}
 
 type SearchParams = Promise<{
   q?: string | string[];
