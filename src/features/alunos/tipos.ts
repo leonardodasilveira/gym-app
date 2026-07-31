@@ -6,3 +6,5 @@ export type AlunoResumo = {
   ativo: boolean;
   totalAvaliacoes: number;
 };
+
+export type StatusFiltro = "todos" | "ativo" | "inativo";

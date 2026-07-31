@@ -1,9 +1,10 @@
 import { headers } from "next/headers";
 
 import { EmptyState } from "@/components/ui/empty-state";
-import { AlunosTabela } from "@/features/alunos/AlunosTabela";
+import { BuscaEFiltroAlunos } from "@/features/alunos/BuscaEFiltroAlunos";
 import type { AlunoResumo } from "@/features/alunos/tipos";
 import { apiFetch } from "@/features/shared/api";
+import { paraStatusFiltro } from "@/features/alunos/utils";
 
 /**
  * Resolve a origem absoluta a partir do host da requisicao. So usado aqui —
@@ -16,7 +17,22 @@ async function origemAtual() {
   return `${protocolo}://${host}`;
 }
 
-export default async function AlunosPage() {
+type SearchParams = Promise<{
+  q?: string | string[];
+  status?: string | string[];
+}>;
+
+export default async function AlunosPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const parametros = await searchParams;
+  const busca = typeof parametros.q === "string" ? parametros.q : "";
+  const status = paraStatusFiltro(
+    typeof parametros.status === "string" ? parametros.status : undefined,
+  );
+
   const origem = await origemAtual();
   const resultado = await apiFetch<AlunoResumo[]>(`${origem}/api/alunos`);
 
@@ -31,7 +47,11 @@ export default async function AlunosPage() {
         {resultado.dados.length === 0 ? (
           <EmptyState titulo="Nenhum aluno cadastrado ainda" />
         ) : (
-          <AlunosTabela alunos={resultado.dados} />
+          <BuscaEFiltroAlunos
+            alunos={resultado.dados}
+            buscaInicial={busca}
+            statusInicial={status}
+          />
         )}
       </div>
     </main>
