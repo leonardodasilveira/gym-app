@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { AlunoCabecalho } from "@/features/alunos/AlunoCabecalho";
 import type { AlunoDetalhe, AvaliacaoCompleta } from "@/features/alunos/tipos";
 import { apiFetch } from "@/features/shared/api";
 import { origemAtual } from "@/features/shared/origem";
@@ -39,12 +41,28 @@ export default async function AlunoDetalhePage({
 
   const aluno = resultadoAluno.dados;
   const avaliacoes = resultadoAvaliacoes.dados;
+  const totalAvaliacoes = aluno.avaliacoes.length;
+  const dataMaisRecente = aluno.avaliacoes[0]?.dataAvaliacao ?? null;
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">{aluno.nome}</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        {avaliacoes.length} avaliação(ões) carregada(s).
+      <Link
+        href="/alunos"
+        className="inline-block rounded-sm text-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+      >
+        ← Alunos
+      </Link>
+
+      <div className="mt-4">
+        <AlunoCabecalho
+          aluno={aluno}
+          totalAvaliacoes={totalAvaliacoes}
+          dataMaisRecente={dataMaisRecente}
+        />
+      </div>
+
+      <p className="mt-8 text-sm text-muted-foreground">
+        {avaliacoes.length} avaliação(ões) carregada(s) para o histórico.
       </p>
     </main>
   );
