@@ -24,3 +24,97 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/*
+ * Impressao do relatorio (E3). --background/--foreground sao redefinidos
+ * aqui porque @theme inline mantem a referencia var() viva: redefinir no
+ * :root dentro de @media print propaga para body, text-foreground,
+ * ring-foreground/10 e qualquer cor caindo em currentColor — sem depender
+ * dos tokens da Nova (ainda ausentes, frontend-plan.md 0.4) e sem ficar
+ * refem do tema (claro/escuro) da tela. Verificado empiricamente: sem isso,
+ * prefers-color-scheme: dark imprime texto quase branco sobre papel branco.
+ */
+@page {
+  size: A4 portrait;
+  margin: 14mm 12mm;
+}
+
+@media print {
+  :root {
+    --background: #ffffff;
+    --foreground: #000000;
+    color-scheme: light;
+  }
+
+  .nao-imprimir {
+    display: none !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  /*
+   * break-inside: avoid na secao resolve cabecalho de tabela orfao e secao
+   * partida entre paginas de uma vez: nenhuma das 10 secoes passa de ~450px
+   * contra 1026px de altura util do A4, entao todas cabem inteiras. Se uma
+   * secao futura crescer mais que uma pagina, o navegador ignora a regra e
+   * quebra normalmente (degradacao graciosa) — thead repete por conta do
+   * table-header-group abaixo.
+   */
+  .relatorio-secao {
+    break-inside: avoid;
+    margin-top: 1.1rem;
+  }
+
+  /*
+   * O contorno dos cartoes em tela e ring-1 ring-foreground/10 (box-shadow).
+   * Fundo desligado no diologo de impressao e decoracao por natureza sem
+   * garantia entre navegadores — uma borda real e o desenho correto aqui.
+   */
+  [data-slot="card"] {
+    break-inside: avoid;
+    border: 1px solid currentColor;
+    box-shadow: none;
+  }
+
+  tr {
+    break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  /*
+   * O container de tabela e overflow-x-auto (necessario em tela, contra
+   * rolagem horizontal em 360px). No papel isso pode recortar conteudo
+   * durante a fragmentacao — seguro soltar porque nenhuma tabela do
+   * relatorio estoura a largura util do A4.
+   */
+  [data-slot="table-container"] {
+    overflow: visible !important;
+  }
+
+  th,
+  td {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+
+  [data-slot="table-head"] {
+    height: auto;
+  }
+}

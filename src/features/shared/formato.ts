@@ -64,3 +64,15 @@ export function criarFormatadorComCasas(
   return (valor) =>
     valor === null ? "—" : formatarNumeroComCasas(valor, casas);
 }
+
+const formatadorDataEmissao = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "America/Sao_Paulo",
+});
+
+/**
+ * Data de hoje fixada no fuso de Sao Paulo — nao depende do fuso do
+ * servidor (mesma classe de bug do risco R5 do frontend-plan.md).
+ */
+export function dataDeHojeFormatada(): string {
+  return formatadorDataEmissao.format(new Date());
+}
