@@ -67,7 +67,7 @@ export default async function AlunoDetalhePage({
       </div>
 
       <div className="mt-6">
-        <AcoesAluno aluno={aluno} />
+        <AcoesAluno aluno={aluno} totalAvaliacoes={totalAvaliacoes} />
       </div>
 
       {avaliacoes.length === 0 ? (
