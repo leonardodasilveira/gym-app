@@ -9,6 +9,8 @@ type CampoFormularioProps = {
   obrigatorio?: boolean;
   apoio?: string;
   erro?: string | null;
+  /** Ids extras (ex.: aviso de duplicidade) somados ao aria-describedby. */
+  idsDescricaoExtra?: string[];
 } & Omit<ComponentProps<typeof Input>, "id" | "aria-describedby" | "aria-invalid">;
 
 /**
@@ -22,13 +24,16 @@ function CampoFormulario({
   obrigatorio,
   apoio,
   erro,
+  idsDescricaoExtra,
   name,
   className,
   ...props
 }: CampoFormularioProps) {
   const apoioId = apoio ? `${id}-apoio` : undefined;
   const erroId = erro ? `${id}-erro` : undefined;
-  const describedBy = [apoioId, erroId].filter(Boolean).join(" ") || undefined;
+  const describedBy =
+    [apoioId, erroId, ...(idsDescricaoExtra ?? [])].filter(Boolean).join(" ") ||
+    undefined;
 
   return (
     <div className={cn("flex flex-col gap-1", className)}>
