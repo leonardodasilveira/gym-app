@@ -1,13 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { EmptyState } from "@/components/ui/empty-state";
 import { AnaliseTecnica } from "@/features/relatorio/AnaliseTecnica";
 import { AvisoProvisorio } from "@/features/relatorio/AvisoProvisorio";
 import { CardsResumo } from "@/features/relatorio/CardsResumo";
 import { CurvaTabela } from "@/features/relatorio/CurvaTabela";
+import { HistoricoCmjTabela } from "@/features/relatorio/HistoricoCmjTabela";
+import { ListaTextos } from "@/features/relatorio/ListaTextos";
 import { MedidasTabela } from "@/features/relatorio/MedidasTabela";
+import { Recomendacoes } from "@/features/relatorio/Recomendacoes";
 import { RelatorioCabecalho } from "@/features/relatorio/RelatorioCabecalho";
 import { RelatorioSecao } from "@/features/relatorio/RelatorioSecao";
+import { ResumoCmj } from "@/features/relatorio/ResumoCmj";
 import type { RelatorioResponse } from "@/features/relatorio/tipos";
 import { apiFetch } from "@/features/shared/api";
 import { origemAtual } from "@/features/shared/origem";
@@ -66,11 +71,11 @@ export default async function RelatorioPage({
         />
       </RelatorioSecao>
 
-      <RelatorioSecao
-        id="curva"
-        titulo="Curva força-velocidade"
-        provisorio
-      >
+      <RelatorioSecao id="resumo-executivo" titulo="Resumo executivo">
+        <ResumoCmj resumoCmj={relatorio.resumoCmj} />
+      </RelatorioSecao>
+
+      <RelatorioSecao id="curva" titulo="Curva força-velocidade" provisorio>
         <CurvaTabela curva={relatorio.curva} />
       </RelatorioSecao>
 
@@ -81,6 +86,49 @@ export default async function RelatorioPage({
       <RelatorioSecao id="medidas" titulo="Medidas da avaliação">
         <MedidasTabela medidasDetalhadas={relatorio.medidasDetalhadas} />
       </RelatorioSecao>
+
+      <RelatorioSecao id="historico-cmj" titulo="Histórico de CMJ">
+        <HistoricoCmjTabela historicoCmj={relatorio.historicoCmj} />
+      </RelatorioSecao>
+
+      <RelatorioSecao
+        id="melhorias"
+        titulo="Melhorias identificadas"
+        provisorio
+      >
+        <ListaTextos
+          itens={relatorio.textos.melhorias}
+          mensagemVazia="Nenhuma melhoria registrada"
+        />
+      </RelatorioSecao>
+
+      <RelatorioSecao id="pontos-atencao" titulo="Pontos de atenção" provisorio>
+        <ListaTextos
+          itens={relatorio.textos.pontosAtencao}
+          mensagemVazia="Nenhum ponto de atenção registrado"
+        />
+      </RelatorioSecao>
+
+      <RelatorioSecao
+        id="recomendacoes"
+        titulo="Recomendações de treino"
+        provisorio
+      >
+        <Recomendacoes recomendacoes={relatorio.textos.recomendacoes} />
+      </RelatorioSecao>
+
+      <RelatorioSecao id="conclusao" titulo="Conclusão" provisorio>
+        {relatorio.textos.conclusao.trim() ? (
+          <p className="text-sm">{relatorio.textos.conclusao}</p>
+        ) : (
+          <EmptyState titulo="Nenhuma conclusão registrada" />
+        )}
+      </RelatorioSecao>
+
+      <footer className="mt-10 border-t pt-4 text-xs text-muted-foreground">
+        Relatório gerado em {new Date().toLocaleDateString("pt-BR")} · dados e
+        textos provisórios, uso apenas para demonstração.
+      </footer>
     </main>
   );
 }
