@@ -24,3 +24,39 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/*
+ * Impressao do relatorio (E3). --background/--foreground sao redefinidos
+ * aqui porque @theme inline mantem a referencia var() viva: redefinir no
+ * :root dentro de @media print propaga para body, text-foreground,
+ * ring-foreground/10 e qualquer cor caindo em currentColor — sem depender
+ * dos tokens da Nova (ainda ausentes, frontend-plan.md 0.4) e sem ficar
+ * refem do tema (claro/escuro) da tela. Verificado empiricamente: sem isso,
+ * prefers-color-scheme: dark imprime texto quase branco sobre papel branco.
+ */
+@page {
+  size: A4 portrait;
+  margin: 14mm 12mm;
+}
+
+@media print {
+  :root {
+    --background: #ffffff;
+    --foreground: #000000;
+    color-scheme: light;
+  }
+
+  .nao-imprimir {
+    display: none !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+}
