@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BuscaEFiltroAlunos } from "@/features/alunos/BuscaEFiltroAlunos";
 import type { AlunoResumo } from "@/features/alunos/tipos";
@@ -35,7 +35,9 @@ export default async function AlunosPage({
     <main className="mx-auto w-full max-w-4xl px-6 py-12">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Alunos</h1>
-        <Button render={<Link href="/alunos/novo">Novo aluno</Link>} />
+        <Link href="/alunos/novo" className={buttonVariants()}>
+          Novo aluno
+        </Link>
       </div>
       <div className="mt-6">
         {resultado.dados.length === 0 ? (

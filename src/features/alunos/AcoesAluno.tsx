@@ -4,8 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { cn } from "@/components/utils";
 import { alternarAtivo, excluirAluno } from "@/features/alunos/acoes";
 import { mensagemDoErro } from "@/features/shared/erros";
 
@@ -83,11 +84,12 @@ export function AcoesAluno({ aluno, totalAvaliacoes }: AcoesAlunoProps) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <div className="flex flex-col-reverse gap-2 sm:flex-row">
-          <Button
-            variant="outline"
-            className="h-11 sm:h-9"
-            render={<Link href={`/alunos/${aluno.id}/editar`}>Editar aluno</Link>}
-          />
+          <Link
+            href={`/alunos/${aluno.id}/editar`}
+            className={cn(buttonVariants({ variant: "outline" }), "h-11 sm:h-9")}
+          >
+            Editar aluno
+          </Link>
           <Button
             type="button"
             variant="outline"

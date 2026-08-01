@@ -4,8 +4,9 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { CampoFormulario } from "@/components/ui/campo-formulario";
+import { cn } from "@/components/utils";
 import { atualizarAluno, criarAluno } from "@/features/alunos/acoes";
 import type { EstadoAluno } from "@/features/alunos/tipos";
 import { normalizarTexto } from "@/features/alunos/utils";
@@ -159,11 +160,12 @@ export function AlunoForm({ modo, aluno, nomesExistentes }: AlunoFormProps) {
         <Button type="submit" disabled={pendente} className="h-11 sm:h-9">
           {pendente ? "Salvando…" : modo === "criar" ? "Salvar aluno" : "Salvar alterações"}
         </Button>
-        <Button
-          variant="outline"
-          className="h-11 sm:h-9"
-          render={<Link href={origem}>Cancelar</Link>}
-        />
+        <Link
+          href={origem}
+          className={cn(buttonVariants({ variant: "outline" }), "h-11 sm:h-9")}
+        >
+          Cancelar
+        </Link>
       </div>
     </form>
   );
