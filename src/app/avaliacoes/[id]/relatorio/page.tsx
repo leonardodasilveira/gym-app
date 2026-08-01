@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/ui/empty-state";
+import { AcaoImprimir } from "@/features/relatorio/AcaoImprimir";
 import { AnaliseTecnica } from "@/features/relatorio/AnaliseTecnica";
 import { AvisoProvisorio } from "@/features/relatorio/AvisoProvisorio";
 import { CardsResumo } from "@/features/relatorio/CardsResumo";
@@ -46,12 +47,15 @@ export default async function RelatorioPage({
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-12">
-      <Link
-        href={`/alunos/${relatorio.aluno.id}`}
-        className="nao-imprimir inline-block rounded-sm text-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
-      >
-        ← Ficha do aluno
-      </Link>
+      <div className="nao-imprimir flex items-center justify-between gap-4">
+        <Link
+          href={`/alunos/${relatorio.aluno.id}`}
+          className="inline-block rounded-sm text-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+        >
+          ← Ficha do aluno
+        </Link>
+        <AcaoImprimir />
+      </div>
 
       <div className="mt-4">
         <RelatorioCabecalho
