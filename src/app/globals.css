@@ -73,8 +73,15 @@ body {
     margin-top: 1.1rem;
   }
 
+  /*
+   * O contorno dos cartoes em tela e ring-1 ring-foreground/10 (box-shadow).
+   * Fundo desligado no diologo de impressao e decoracao por natureza sem
+   * garantia entre navegadores — uma borda real e o desenho correto aqui.
+   */
   [data-slot="card"] {
     break-inside: avoid;
+    border: 1px solid currentColor;
+    box-shadow: none;
   }
 
   tr {
