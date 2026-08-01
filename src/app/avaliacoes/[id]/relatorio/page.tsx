@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { AnaliseTecnica } from "@/features/relatorio/AnaliseTecnica";
 import { AvisoProvisorio } from "@/features/relatorio/AvisoProvisorio";
 import { CardsResumo } from "@/features/relatorio/CardsResumo";
+import { CurvaTabela } from "@/features/relatorio/CurvaTabela";
+import { MedidasTabela } from "@/features/relatorio/MedidasTabela";
 import { RelatorioCabecalho } from "@/features/relatorio/RelatorioCabecalho";
 import { RelatorioSecao } from "@/features/relatorio/RelatorioSecao";
 import type { RelatorioResponse } from "@/features/relatorio/tipos";
@@ -61,6 +64,22 @@ export default async function RelatorioPage({
           score={relatorio.score}
           perfil={relatorio.curva.perfil}
         />
+      </RelatorioSecao>
+
+      <RelatorioSecao
+        id="curva"
+        titulo="Curva força-velocidade"
+        provisorio
+      >
+        <CurvaTabela curva={relatorio.curva} />
+      </RelatorioSecao>
+
+      <RelatorioSecao id="analise-tecnica" titulo="Análise técnica" provisorio>
+        <AnaliseTecnica ajuste={relatorio.curva.ajuste} />
+      </RelatorioSecao>
+
+      <RelatorioSecao id="medidas" titulo="Medidas da avaliação">
+        <MedidasTabela medidasDetalhadas={relatorio.medidasDetalhadas} />
       </RelatorioSecao>
     </main>
   );
