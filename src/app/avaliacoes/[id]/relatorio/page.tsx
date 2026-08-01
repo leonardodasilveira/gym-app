@@ -1,5 +1,10 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { AvisoProvisorio } from "@/features/relatorio/AvisoProvisorio";
+import { CardsResumo } from "@/features/relatorio/CardsResumo";
+import { RelatorioCabecalho } from "@/features/relatorio/RelatorioCabecalho";
+import { RelatorioSecao } from "@/features/relatorio/RelatorioSecao";
 import type { RelatorioResponse } from "@/features/relatorio/tipos";
 import { apiFetch } from "@/features/shared/api";
 import { origemAtual } from "@/features/shared/origem";
@@ -33,12 +38,30 @@ export default async function RelatorioPage({
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Relatório de performance
-      </h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        {relatorio.aluno.nome} — {relatorio.avaliacao.dataAvaliacao}
-      </p>
+      <Link
+        href={`/alunos/${relatorio.aluno.id}`}
+        className="nao-imprimir inline-block rounded-sm text-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+      >
+        ← Ficha do aluno
+      </Link>
+
+      <div className="mt-4">
+        <RelatorioCabecalho
+          aluno={relatorio.aluno}
+          avaliacao={relatorio.avaliacao}
+          periodo={relatorio.periodo}
+        />
+      </div>
+
+      <AvisoProvisorio provisorio={relatorio.provisorio} />
+
+      <RelatorioSecao id="visao-geral" titulo="Visão geral">
+        <CardsResumo
+          resumoCmj={relatorio.resumoCmj}
+          score={relatorio.score}
+          perfil={relatorio.curva.perfil}
+        />
+      </RelatorioSecao>
     </main>
   );
 }
