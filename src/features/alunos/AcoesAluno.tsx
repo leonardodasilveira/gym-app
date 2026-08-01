@@ -38,6 +38,7 @@ export function AcoesAluno({ aluno, totalAvaliacoes }: AcoesAlunoProps) {
   const [erroExclusao, setErroExclusao] = useState<string | null>(null);
 
   async function alternarStatus() {
+    if (pendente) return;
     setPendente(true);
     setErro(null);
 

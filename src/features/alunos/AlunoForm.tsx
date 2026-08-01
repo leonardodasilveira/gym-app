@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -57,6 +57,15 @@ export function AlunoForm({ modo, aluno, nomesExistentes }: AlunoFormProps) {
 
   const [avisoDuplicidade, setAvisoDuplicidade] = useState<string | null>(null);
 
+  // Guarda contra duplo submit alem do `disabled` (e4-implementation-spec.md
+  // 16): um segundo clique antes do re-render que desabilita o botao nao
+  // dispara uma segunda requisicao.
+  const emAndamentoRef = useRef(false);
+
+  useEffect(() => {
+    if (!pendente) emAndamentoRef.current = false;
+  }, [pendente]);
+
   const valores =
     estado.status === "erro"
       ? estado.valores
@@ -95,6 +104,11 @@ export function AlunoForm({ modo, aluno, nomesExistentes }: AlunoFormProps) {
     <form
       action={dispatch}
       onSubmit={(evento) => {
+        if (emAndamentoRef.current) {
+          evento.preventDefault();
+          return;
+        }
+        emAndamentoRef.current = true;
         const nomeAtual = new FormData(evento.currentTarget).get("nome");
         verificarDuplicidade(String(nomeAtual ?? ""));
       }}
@@ -143,7 +157,7 @@ export function AlunoForm({ modo, aluno, nomesExistentes }: AlunoFormProps) {
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row">
         <Button type="submit" disabled={pendente} className="h-11 sm:h-9">
-          {modo === "criar" ? "Salvar aluno" : "Salvar alterações"}
+          {pendente ? "Salvando…" : modo === "criar" ? "Salvar aluno" : "Salvar alterações"}
         </Button>
         <Button
           variant="outline"

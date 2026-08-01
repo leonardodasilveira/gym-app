@@ -37,7 +37,15 @@ export function ConfirmDialog({
   erro,
 }: ConfirmDialogProps) {
   return (
-    <AlertDialog.Root open={aberto} onOpenChange={aoMudarAberto}>
+    <AlertDialog.Root
+      open={aberto}
+      onOpenChange={(novoAberto) => {
+        // Escape e o Close nao fecham durante uma requisicao em andamento
+        // (e4-implementation-spec.md 15).
+        if (pendente && !novoAberto) return;
+        aoMudarAberto(novoAberto);
+      }}
+    >
       <AlertDialog.Portal>
         <AlertDialog.Backdrop className="fixed inset-0 z-50 bg-foreground/40" />
         <AlertDialog.Popup
