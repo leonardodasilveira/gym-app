@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/ui/empty-state";
+import { AcoesAluno } from "@/features/alunos/AcoesAluno";
 import { AlunoCabecalho } from "@/features/alunos/AlunoCabecalho";
 import { ComparacaoAvaliacoes } from "@/features/alunos/ComparacaoAvaliacoes";
 import { HistoricoAvaliacoes } from "@/features/alunos/HistoricoAvaliacoes";
@@ -63,6 +64,10 @@ export default async function AlunoDetalhePage({
           totalAvaliacoes={totalAvaliacoes}
           dataMaisRecente={dataMaisRecente}
         />
+      </div>
+
+      <div className="mt-6">
+        <AcoesAluno aluno={aluno} />
       </div>
 
       {avaliacoes.length === 0 ? (
