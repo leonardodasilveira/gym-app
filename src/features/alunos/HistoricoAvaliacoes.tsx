@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import {
   Table,
   TableBody,
@@ -56,7 +58,12 @@ export function HistoricoAvaliacoes({
             {avaliacoes.map((avaliacao) => (
               <TableRow key={avaliacao.id}>
                 <TableHead scope="row" className="font-medium">
-                  {formatarData(avaliacao.dataAvaliacao)}
+                  <Link
+                    href={`/avaliacoes/${avaliacao.id}/relatorio`}
+                    className="rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+                  >
+                    {formatarData(avaliacao.dataAvaliacao)}
+                  </Link>
                 </TableHead>
                 {colunas.map((coluna) => (
                   <TableCell key={`${coluna.chave}-${coluna.lado ?? "unico"}`}>

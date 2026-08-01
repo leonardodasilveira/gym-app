@@ -42,3 +42,25 @@ export function arredondar(valor: number, casas = 2): number {
   const fator = 10 ** casas;
   return Math.round(valor * fator) / fator;
 }
+
+/**
+ * Formata com um numero de casas decimais configuravel — usado onde 2 casas
+ * (o padrao de `formatarNumeroOuTraco`) perdem informacao, ex.: a inclinacao
+ * da curva forca-velocidade (-0.01062, precisa de 5 casas).
+ */
+export function formatarNumeroComCasas(valor: number, casas: number): string {
+  return new Intl.NumberFormat("pt-BR", {
+    maximumFractionDigits: casas,
+  }).format(valor);
+}
+
+/**
+ * Fabrica um formatador null-safe com casas fixas, compativel com a prop
+ * `formatar` de `ValorOuAusente`.
+ */
+export function criarFormatadorComCasas(
+  casas: number,
+): (valor: number | null) => string {
+  return (valor) =>
+    valor === null ? "—" : formatarNumeroComCasas(valor, casas);
+}
