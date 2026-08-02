@@ -124,7 +124,7 @@ export function ajustarCurva(pontos: PontoCurva[]): AjusteCurva | null {
 /** Rotulo do perfil a partir da inclinacao. ⚠️ Faixas inventadas. */
 export function classificarPerfil(ajuste: AjusteCurva | null): string {
   if (!ajuste) return "Dados insuficientes";
-  if (ajuste.inclinacao > -0.008) return "Orientado a forca";
+  if (ajuste.inclinacao > -0.008) return "Orientado a força";
   if (ajuste.inclinacao > -0.015) return "Equilibrado";
   return "Orientado a velocidade";
 }
@@ -145,7 +145,7 @@ export function calcularScore(ajuste: AjusteCurva | null): {
   const valor = Math.round(notaVelocidade + notaForca);
 
   const nivel =
-    valor >= 80 ? "Alto" : valor >= 60 ? "Medio" : valor >= 40 ? "Baixo" : "Inicial";
+    valor >= 80 ? "Alto" : valor >= 60 ? "Médio" : valor >= 40 ? "Baixo" : "Inicial";
 
   return { valor, nivel };
 }

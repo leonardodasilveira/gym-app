@@ -84,6 +84,14 @@ decide se são dois campos ou um, e `chave` diz onde o valor entra no DTO.
 { "nome": "Ana Prado", "dataNascimento": "1998-03-14" }  // dataNascimento opcional
 ```
 
+No `PATCH`, `dataNascimento` tem três comportamentos distintos:
+
+| Payload | Efeito |
+| --- | --- |
+| chave ausente | mantém o valor atual |
+| `"dataNascimento": null` | **limpa** o campo |
+| `"dataNascimento": "1998-03-14"` | troca o valor |
+
 ## Avaliações
 
 | Método | Rota | Descrição |
@@ -97,8 +105,11 @@ decide se são dois campos ou um, e `chave` diz onde o valor entra no DTO.
 ### `POST /avaliacoes`
 
 Recebe exatamente o formato combinado. `GET /avaliacoes/:id` devolve o mesmo
-formato de volta, mais `id`, `alunoNome` e `criadoEm` — round-trip garantido,
-dá pra usar a resposta pra popular o formulário de edição.
+formato de volta, mais `id`, `alunoNome` e `criadoEm` — round-trip garantido.
+
+⚠️ **Não existe endpoint de edição de avaliação.** Só há `POST`, `GET` e
+`DELETE`. Enquanto for assim, corrigir uma avaliação significa excluir e
+recriar.
 
 ```jsonc
 {
@@ -133,8 +144,12 @@ Regras de validação relevantes:
 - `unidade` é literal fechado: `"cm"` em medidas, `"kg"` em carga, `"s"` em tempo.
 - `testes` pode vir vazio (`[]`), mas um teste presente precisa de ao menos uma
   tentativa.
-- `carga.valor` e `tempo.valor` precisam ser positivos; `repeticoes` inteiro ≥ 1.
-- `codigo` do teste é único dentro da avaliação, e `ordem` é única dentro do teste.
+- `carga.valor` e `tempo.valor` precisam ser positivos; `repeticoes` inteiro
+  entre **1 e 100**.
+- `codigo` do teste é único dentro da avaliação, e `ordem` é única dentro do
+  teste. Atenção: isso é **constraint de banco**, não validação de schema —
+  a violação volta como **409 sem indicar o campo**, ao contrário do 422, que
+  traz `issues`. Vale prevenir no cliente.
 
 ## `GET /avaliacoes/:id/relatorio`
 
@@ -144,6 +159,7 @@ Tudo que o relatório precisa, numa chamada. Resposta abreviada:
 {
   "aluno":   { "id": "...", "nome": "Ana Prado" },
   "avaliacao": { "id": "...", "dataAvaliacao": "2026-07-30", "observacoes": "..." },
+  // ⚠️ totalAvaliacoes conta só avaliações COM CMJ — ver notas abaixo
   "periodo": { "de": "2025-07-10", "ate": "2026-07-30", "totalAvaliacoes": 9 },
 
   "medidas": { /* mesmo formato do DTO */ },
@@ -166,7 +182,7 @@ Tudo que o relatório precisa, numa chamada. Resposta abreviada:
         "cargaKg": 20, "velocidadeMs": 0.699 }
       // ...ordenados por carga crescente
     ],
-    "cargaMaximaKg": 50,
+    "cargaMaximaKg": 50,       // pode vir null — ver notas abaixo
     "ajuste": {
       "inclinacao": -0.01187,   // m/s por kg
       "v0": 0.944,              // velocidade teórica máxima
@@ -199,8 +215,20 @@ Notas pro front:
 - **`ajuste` pode vir `null`** — acontece com menos de 2 pontos de carga, ou se
   todas as cargas forem iguais. Nesse caso `perfil` vem `"Dados insuficientes"`.
 - **`resumoCmj` pode vir `null`** se o aluno nunca teve CMJ medido.
+- **`curva.cargaMaximaKg` pode vir `null`** quando a avaliação não tem nenhuma
+  tentativa com carga.
 - `historicoCmj` **pula** avaliações sem CMJ em vez de mandar zero (era um bug
   conhecido da planilha, ver `planilha-atual.md`).
+- **`periodo.totalAvaliacoes` conta só as avaliações com CMJ**, não o total de
+  avaliações do aluno — é o tamanho de `historicoCmj`. Não rotular na tela como
+  "total de avaliações".
+- **`periodo`, `resumoCmj` e `score` cobrem o histórico inteiro do aluno**, não
+  a avaliação relatada nem uma janela de tempo. O endpoint não aceita nenhum
+  parâmetro de período. Rotular com precisão até isso mudar.
+- `perfil` e `nivel` vêm **acentuados** e prontos pra exibição; o front não
+  precisa traduzir nem corrigir. Valores possíveis: `perfil` ∈ {`Orientado a
+  força`, `Equilibrado`, `Orientado a velocidade`, `Dados insuficientes`};
+  `nivel` ∈ {`Alto`, `Médio`, `Baixo`, `Inicial`, `Sem dados`}.
 - O objeto `provisorio` descreve, em texto, o que ainda não é real. Dá pra usar
   como tooltip/aviso na tela durante a demo — e sumir com ele depois.
 
