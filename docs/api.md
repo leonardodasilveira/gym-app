@@ -6,11 +6,16 @@ professor. Fórmulas e textos do relatório são provisórios — ver
 
 Base local: `http://localhost:3000/api`
 
-Os tipos de entrada saem de `src/lib/schemas.ts` e podem ser importados direto:
+Os tipos podem ser importados direto — **entrada e saída**:
 
 ```ts
 import type { CriarAvaliacaoDTO, CriarAlunoDTO } from "@/lib/schemas";
+import type { RelatorioResponse } from "@/lib/relatorio";
 ```
+
+Nenhum dos dois é declaração paralela: os de entrada saem dos schemas Zod, o
+de saída sai da função que monta a resposta. Formato e implementação não têm
+como divergir em silêncio.
 
 ## Códigos de resposta
 
@@ -287,6 +292,27 @@ velocidade.** Pra virar m/s falta o deslocamento por repetição, que hoje é um
 constante chutada (0,5 m) em `DESLOCAMENTO_POR_CODIGO`. Os números saem na ordem
 certa (mais carga → mais lento), mas a escala não bate com a VMP que o professor
 usa hoje. Está na lista de dúvidas como a nº 11.
+
+## Pendências levantadas pelo front
+
+Resposta do backend às perguntas de `frontend-plan.md` §12. O que está
+**resolvido** já está implementado e documentado acima.
+
+| # | Pergunta | Situação |
+| --- | --- | --- |
+| B1 | período de 8 semanas | **resolvido** — `?semanas=`, opt-in, default inalterado |
+| D3 | `PATCH` não limpava `dataNascimento` | **resolvido** — schema virou `.nullish()` |
+| D4 | `perfil`/`nivel` viriam acentuados? | **resolvido** — sim, prontos pra exibir |
+| D6 | o front pode importar `MEDIDAS` de `@/lib/medidas`? | **sim** — o módulo não tem nenhum import, é catálogo estático e fonte única da verdade. `GET /medidas` existe pra quem preferir buscar |
+| D7 | exportar `RelatorioResponse` | **resolvido** — derivado, em `@/lib/relatorio` |
+| D1 | recortar até a data da avaliação relatada | **parcial** — com `?semanas=` a janela termina nela; sem o parâmetro, ainda cobre tudo |
+| D8 | service layer em `src/lib/` | **começou** — `relatorio.ts` é o primeiro caso; sem plano de estender ainda |
+| D2 | `totalAvaliacoes` contar só CMJ é intencional? | **aberto** — comportamento documentado, mas a escolha é de produto |
+| D5 | `POST`/`PATCH /alunos` devolverem `totalAvaliacoes` | **aberto** — não implementado |
+| B2 | seções do relatório que a API não entrega | **aberto** — depende das fórmulas reais |
+| B3 | o que significa compartilhar | **aberto** — decisão de produto |
+| B4 | filiais entram no MVP? | **aberto** — não existem no schema |
+| B5 | o MVP edita avaliação? | **aberto** — hoje só excluir e recriar |
 
 ## Rodando
 

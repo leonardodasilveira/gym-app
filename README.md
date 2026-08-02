@@ -55,6 +55,7 @@ src/lib/medidas.ts      catálogo de medidas: código, sigla (SLB ESQ), rótulo,
 src/lib/schemas.ts      contrato de entrada (Zod) — tipos compartilhados com o front
 src/lib/http.ts         helpers de resposta e tradução de erro
 src/lib/avaliacoes.ts   conversão entre o DTO do front e as tabelas
+src/lib/relatorio.ts    monta a resposta do relatório + tipo RelatorioResponse
 src/lib/calculos.ts     ⚠️ curva, perfil e score — tudo provisório
 src/lib/textos.ts       ⚠️ textos do relatório — lorem ipsum
 src/app/api/            route handlers
