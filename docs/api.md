@@ -210,6 +210,21 @@ Tudo que o relatório precisa, numa chamada. Resposta abreviada:
 }
 ```
 
+**O tipo da resposta é exportado.** Em vez de espelhar o formato à mão:
+
+```ts
+import type { RelatorioResponse } from "@/lib/relatorio";
+```
+
+Também saem de lá `PontoCmj` e `ResumoCmjRelatorio`. O tipo é **derivado** da
+função que monta a resposta (`ReturnType<typeof montarRelatorio>`), não
+declarado à parte — então não tem como o contrato e a implementação
+divergirem em silêncio: mudou o formato, o `typecheck` acusa em quem consome.
+
+`src/lib/relatorio.ts` não importa `@/lib/prisma` nem `@/lib/http` de
+propósito — quem vai ao banco é o route handler. Dá pra fazer `import type`
+do front sem arrastar módulo server-only.
+
 Notas pro front:
 
 - **`ajuste` pode vir `null`** — acontece com menos de 2 pontos de carga, ou se
