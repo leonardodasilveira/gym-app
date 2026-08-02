@@ -15,6 +15,7 @@ Stack: **Next.js 16 (App Router) + TypeScript + Tailwind CSS 4 + Prisma 7 + SQLi
 | Arquivo | O que é |
 | --- | --- |
 | [`docs/api.md`](docs/api.md) | **contrato da API** — comece por aqui pra mexer no front |
+| [`docs/frontend-plan.md`](docs/frontend-plan.md) | **plano do front** — como a interface é construída; specs por etapa em `docs/e*.md` |
 | [`docs/planilha-atual.md`](docs/planilha-atual.md) | como o professor trabalha hoje, e as dúvidas em aberto |
 | [`docs/vbt.md`](docs/vbt.md) | o que é Velocity Based Training, base conceitual |
 
@@ -57,6 +58,9 @@ src/lib/avaliacoes.ts   conversão entre o DTO do front e as tabelas
 src/lib/calculos.ts     ⚠️ curva, perfil e score — tudo provisório
 src/lib/textos.ts       ⚠️ textos do relatório — lorem ipsum
 src/app/api/            route handlers
+src/app/                páginas (alunos, relatório) + loading/error/not-found
+src/components/ui/      primitivos de interface (shadcn/ui sobre Base UI)
+src/features/           telas por domínio: alunos, relatorio, shared
 ```
 
 O banco é um arquivo (`prisma/dev.db`) e **não** vai pro git — cada pessoa gera o
@@ -65,4 +69,5 @@ seu localmente.
 ## Divisão do trabalho
 
 Back (`prisma/`, `src/lib/`, `src/app/api/`) e front (páginas em `src/app/`,
-`src/components/`) ficam em pastas separadas pra reduzir conflito de merge.
+`src/components/`, `src/features/`) ficam em pastas separadas pra reduzir
+conflito de merge.
