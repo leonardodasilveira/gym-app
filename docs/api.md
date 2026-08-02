@@ -153,14 +153,40 @@ Regras de validação relevantes:
 
 ## `GET /avaliacoes/:id/relatorio`
 
-Tudo que o relatório precisa, numa chamada. Resposta abreviada:
+Tudo que o relatório precisa, numa chamada.
+
+### Janela de período — `?semanas=`
+
+| Chamada | Cobertura |
+| --- | --- |
+| `/avaliacoes/:id/relatorio` | **histórico inteiro do aluno** (default) |
+| `/avaliacoes/:id/relatorio?semanas=8` | as 8 semanas que terminam na data da avaliação relatada |
+
+`semanas` é inteiro entre 1 e 520; fora disso é 422. **Não tem default de
+propósito** — sem o parâmetro nada muda em relação ao comportamento anterior,
+para nenhum relatório já existente passar a mostrar números diferentes em
+silêncio.
+
+O recorte afeta `historicoCmj`, `resumoCmj` e `periodo`. **Não afeta `curva`
+nem `score`**, que saem dos testes da própria avaliação relatada, não do
+histórico.
+
+`periodo.semanas` diz qual janela foi aplicada, ou `null` quando é o histórico
+inteiro — use isso para rotular a tela, em vez de assumir o que os números
+significam. Atenção: `periodo.de`/`ate` continuam sendo os extremos do **dado
+que existe**, não as bordas da janela pedida (a janela pode começar antes do
+primeiro registro do aluno).
+
+Resposta abreviada:
 
 ```jsonc
 {
   "aluno":   { "id": "...", "nome": "Ana Prado" },
   "avaliacao": { "id": "...", "dataAvaliacao": "2026-07-30", "observacoes": "..." },
   // ⚠️ totalAvaliacoes conta só avaliações COM CMJ — ver notas abaixo
-  "periodo": { "de": "2025-07-10", "ate": "2026-07-30", "totalAvaliacoes": 9 },
+  // semanas: janela aplicada, ou null quando cobre o histórico inteiro
+  "periodo": { "de": "2025-07-10", "ate": "2026-07-30",
+               "totalAvaliacoes": 9, "semanas": null },
 
   "medidas": { /* mesmo formato do DTO */ },
 
@@ -237,9 +263,9 @@ Notas pro front:
 - **`periodo.totalAvaliacoes` conta só as avaliações com CMJ**, não o total de
   avaliações do aluno — é o tamanho de `historicoCmj`. Não rotular na tela como
   "total de avaliações".
-- **`periodo`, `resumoCmj` e `score` cobrem o histórico inteiro do aluno**, não
-  a avaliação relatada nem uma janela de tempo. O endpoint não aceita nenhum
-  parâmetro de período. Rotular com precisão até isso mudar.
+- **`periodo` e `resumoCmj` cobrem o histórico inteiro do aluno** por default,
+  não a avaliação relatada — use `?semanas=` para recortar, e `periodo.semanas`
+  para rotular. `score` e `curva` sempre saem da avaliação relatada.
 - `perfil` e `nivel` vêm **acentuados** e prontos pra exibição; o front não
   precisa traduzir nem corrigir. Valores possíveis: `perfil` ∈ {`Orientado a
   força`, `Equilibrado`, `Orientado a velocidade`, `Dados insuficientes`};

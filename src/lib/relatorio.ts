@@ -46,9 +46,33 @@ export type AvaliacaoParaRelatorio = {
   }[];
 };
 
+/**
+ * Recorta o historico numa janela de `semanas` terminando na data da
+ * avaliacao relatada. `undefined` devolve a serie inteira — e o comportamento
+ * default da rota, preservado byte a byte.
+ *
+ * Compara string ISO com string ISO ("2026-07-30"), que ordena
+ * lexicograficamente igual a cronologicamente: sem Date no meio do caminho,
+ * sem risco de fuso (frontend-plan.md R5).
+ */
+function recortarHistorico(
+  historico: PontoCmj[],
+  ate: string,
+  semanas: number | undefined,
+): PontoCmj[] {
+  if (semanas === undefined) return historico;
+
+  const inicio = new Date(`${ate}T00:00:00.000Z`);
+  inicio.setUTCDate(inicio.getUTCDate() - semanas * 7);
+  const de = inicio.toISOString().slice(0, 10);
+
+  return historico.filter((ponto) => ponto.data >= de && ponto.data <= ate);
+}
+
 export function montarRelatorio(
   avaliacao: AvaliacaoParaRelatorio,
-  historicoCmj: PontoCmj[],
+  historicoCompleto: PontoCmj[],
+  semanas?: number,
 ) {
   // Um ponto por tentativa: todas as cargas de todos os testes entram na mesma
   // curva, como o professor faz hoje na planilha (SJ nas cargas leves, depois
@@ -70,6 +94,11 @@ export function montarRelatorio(
 
   const ajuste = ajustarCurva(pontos);
   const dataAvaliacao = formatarData(avaliacao.dataAvaliacao);
+  const historicoCmj = recortarHistorico(
+    historicoCompleto,
+    dataAvaliacao,
+    semanas,
+  );
 
   return {
     aluno: {
@@ -82,10 +111,18 @@ export function montarRelatorio(
       observacoes: avaliacao.observacoes,
     },
     periodo: {
+      // `de`/`ate` sao os extremos do dado que existe, nao as bordas da
+      // janela pedida — a janela pode comecar antes do primeiro registro.
       de: historicoCmj.at(0)?.data ?? dataAvaliacao,
       ate: historicoCmj.at(-1)?.data ?? dataAvaliacao,
       // ⚠️ Conta so avaliacoes COM CMJ, nao o total do aluno — ver api.md.
       totalAvaliacoes: historicoCmj.length,
+      /**
+       * Janela aplicada, em semanas, ou `null` quando o relatorio cobre o
+       * historico inteiro. Existe pro front conseguir rotular a tela com
+       * honestidade em vez de chutar o que os numeros significam.
+       */
+      semanas: semanas ?? null,
     },
     medidas: linhasParaMedidas(avaliacao.medidas),
     // Mesmo conteudo, achatado e com a sigla da planilha pronta pra imprimir.

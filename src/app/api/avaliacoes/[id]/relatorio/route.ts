@@ -1,7 +1,8 @@
 import { avaliacaoCompleta, formatarData } from "@/lib/avaliacoes";
-import { handler, json, naoEncontrado } from "@/lib/http";
+import { handler, json, naoEncontrado, parseQuery } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { montarRelatorio, type PontoCmj } from "@/lib/relatorio";
+import { relatorioQuerySchema } from "@/lib/schemas";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -9,9 +10,14 @@ type Context = { params: Promise<{ id: string }> };
  * Dados do relatorio de performance de uma avaliacao. A montagem da resposta
  * (e o tipo `RelatorioResponse`, consumido pelo front) vive em
  * `src/lib/relatorio.ts`; aqui fica so a busca no banco.
+ *
+ * `?semanas=8` recorta o historico numa janela terminando na data da
+ * avaliacao. Sem o parametro, o relatorio cobre o historico inteiro — o
+ * comportamento de sempre.
  */
-export const GET = handler(async (_request, { params }: Context) => {
+export const GET = handler(async (request, { params }: Context) => {
   const { id } = await params;
+  const { semanas } = parseQuery(request, relatorioQuerySchema);
 
   const avaliacao = await prisma.avaliacao.findUnique({
     where: { id },
@@ -22,7 +28,7 @@ export const GET = handler(async (_request, { params }: Context) => {
 
   const historico = await historicoCmj(avaliacao.alunoId);
 
-  return json(montarRelatorio(avaliacao, historico));
+  return json(montarRelatorio(avaliacao, historico, semanas));
 });
 
 /** Serie historica do CMJ do aluno, da avaliacao mais antiga pra mais recente. */
