@@ -78,7 +78,16 @@ export const criarAlunoSchema = z.object({
   ativo: z.boolean().optional(),
 });
 
-export const atualizarAlunoSchema = criarAlunoSchema.partial();
+/**
+ * No PATCH, `dataNascimento` e `nullish`: omitir mantem o valor atual, `null`
+ * limpa o campo (a coluna e `DateTime?`) e uma data troca. Sem o `null` nao
+ * existia payload capaz de limpar a data — ver `frontend-plan.md` D3.
+ */
+export const atualizarAlunoSchema = criarAlunoSchema.partial().extend({
+  dataNascimento: z.iso
+    .date("dataNascimento no formato AAAA-MM-DD")
+    .nullish(),
+});
 
 // --- query params ----------------------------------------------------------
 

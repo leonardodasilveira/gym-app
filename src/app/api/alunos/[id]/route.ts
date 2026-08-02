@@ -46,8 +46,13 @@ export const PATCH = handler(async (request, { params }: Context) => {
     where: { id },
     data: {
       ...dados,
+      // undefined mantem o valor atual; null limpa; string troca. Sem o ramo
+      // do null, `new Date(null)` viraria 1970-01-01 em vez de apagar.
       ...(dataNascimento !== undefined
-        ? { dataNascimento: new Date(dataNascimento) }
+        ? {
+            dataNascimento:
+              dataNascimento === null ? null : new Date(dataNascimento),
+          }
         : {}),
     },
   });
