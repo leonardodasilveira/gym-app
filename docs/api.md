@@ -6,11 +6,16 @@ professor. Fórmulas e textos do relatório são provisórios — ver
 
 Base local: `http://localhost:3000/api`
 
-Os tipos de entrada saem de `src/lib/schemas.ts` e podem ser importados direto:
+Os tipos podem ser importados direto — **entrada e saída**:
 
 ```ts
 import type { CriarAvaliacaoDTO, CriarAlunoDTO } from "@/lib/schemas";
+import type { RelatorioResponse } from "@/lib/relatorio";
 ```
+
+Nenhum dos dois é declaração paralela: os de entrada saem dos schemas Zod, o
+de saída sai da função que monta a resposta. Formato e implementação não têm
+como divergir em silêncio.
 
 ## Códigos de resposta
 
@@ -153,14 +158,40 @@ Regras de validação relevantes:
 
 ## `GET /avaliacoes/:id/relatorio`
 
-Tudo que o relatório precisa, numa chamada. Resposta abreviada:
+Tudo que o relatório precisa, numa chamada.
+
+### Janela de período — `?semanas=`
+
+| Chamada | Cobertura |
+| --- | --- |
+| `/avaliacoes/:id/relatorio` | **histórico inteiro do aluno** (default) |
+| `/avaliacoes/:id/relatorio?semanas=8` | as 8 semanas que terminam na data da avaliação relatada |
+
+`semanas` é inteiro entre 1 e 520; fora disso é 422. **Não tem default de
+propósito** — sem o parâmetro nada muda em relação ao comportamento anterior,
+para nenhum relatório já existente passar a mostrar números diferentes em
+silêncio.
+
+O recorte afeta `historicoCmj`, `resumoCmj` e `periodo`. **Não afeta `curva`
+nem `score`**, que saem dos testes da própria avaliação relatada, não do
+histórico.
+
+`periodo.semanas` diz qual janela foi aplicada, ou `null` quando é o histórico
+inteiro — use isso para rotular a tela, em vez de assumir o que os números
+significam. Atenção: `periodo.de`/`ate` continuam sendo os extremos do **dado
+que existe**, não as bordas da janela pedida (a janela pode começar antes do
+primeiro registro do aluno).
+
+Resposta abreviada:
 
 ```jsonc
 {
   "aluno":   { "id": "...", "nome": "Ana Prado" },
   "avaliacao": { "id": "...", "dataAvaliacao": "2026-07-30", "observacoes": "..." },
   // ⚠️ totalAvaliacoes conta só avaliações COM CMJ — ver notas abaixo
-  "periodo": { "de": "2025-07-10", "ate": "2026-07-30", "totalAvaliacoes": 9 },
+  // semanas: janela aplicada, ou null quando cobre o histórico inteiro
+  "periodo": { "de": "2025-07-10", "ate": "2026-07-30",
+               "totalAvaliacoes": 9, "semanas": null },
 
   "medidas": { /* mesmo formato do DTO */ },
 
@@ -210,6 +241,21 @@ Tudo que o relatório precisa, numa chamada. Resposta abreviada:
 }
 ```
 
+**O tipo da resposta é exportado.** Em vez de espelhar o formato à mão:
+
+```ts
+import type { RelatorioResponse } from "@/lib/relatorio";
+```
+
+Também saem de lá `PontoCmj` e `ResumoCmjRelatorio`. O tipo é **derivado** da
+função que monta a resposta (`ReturnType<typeof montarRelatorio>`), não
+declarado à parte — então não tem como o contrato e a implementação
+divergirem em silêncio: mudou o formato, o `typecheck` acusa em quem consome.
+
+`src/lib/relatorio.ts` não importa `@/lib/prisma` nem `@/lib/http` de
+propósito — quem vai ao banco é o route handler. Dá pra fazer `import type`
+do front sem arrastar módulo server-only.
+
 Notas pro front:
 
 - **`ajuste` pode vir `null`** — acontece com menos de 2 pontos de carga, ou se
@@ -222,9 +268,9 @@ Notas pro front:
 - **`periodo.totalAvaliacoes` conta só as avaliações com CMJ**, não o total de
   avaliações do aluno — é o tamanho de `historicoCmj`. Não rotular na tela como
   "total de avaliações".
-- **`periodo`, `resumoCmj` e `score` cobrem o histórico inteiro do aluno**, não
-  a avaliação relatada nem uma janela de tempo. O endpoint não aceita nenhum
-  parâmetro de período. Rotular com precisão até isso mudar.
+- **`periodo` e `resumoCmj` cobrem o histórico inteiro do aluno** por default,
+  não a avaliação relatada — use `?semanas=` para recortar, e `periodo.semanas`
+  para rotular. `score` e `curva` sempre saem da avaliação relatada.
 - `perfil` e `nivel` vêm **acentuados** e prontos pra exibição; o front não
   precisa traduzir nem corrigir. Valores possíveis: `perfil` ∈ {`Orientado a
   força`, `Equilibrado`, `Orientado a velocidade`, `Dados insuficientes`};
@@ -246,6 +292,27 @@ velocidade.** Pra virar m/s falta o deslocamento por repetição, que hoje é um
 constante chutada (0,5 m) em `DESLOCAMENTO_POR_CODIGO`. Os números saem na ordem
 certa (mais carga → mais lento), mas a escala não bate com a VMP que o professor
 usa hoje. Está na lista de dúvidas como a nº 11.
+
+## Pendências levantadas pelo front
+
+Resposta do backend às perguntas de `frontend-plan.md` §12. O que está
+**resolvido** já está implementado e documentado acima.
+
+| # | Pergunta | Situação |
+| --- | --- | --- |
+| B1 | período de 8 semanas | **resolvido** — `?semanas=`, opt-in, default inalterado |
+| D3 | `PATCH` não limpava `dataNascimento` | **resolvido** — schema virou `.nullish()` |
+| D4 | `perfil`/`nivel` viriam acentuados? | **resolvido** — sim, prontos pra exibir |
+| D6 | o front pode importar `MEDIDAS` de `@/lib/medidas`? | **sim** — o módulo não tem nenhum import, é catálogo estático e fonte única da verdade. `GET /medidas` existe pra quem preferir buscar |
+| D7 | exportar `RelatorioResponse` | **resolvido** — derivado, em `@/lib/relatorio` |
+| D1 | recortar até a data da avaliação relatada | **parcial** — com `?semanas=` a janela termina nela; sem o parâmetro, ainda cobre tudo |
+| D8 | service layer em `src/lib/` | **começou** — `relatorio.ts` é o primeiro caso; sem plano de estender ainda |
+| D2 | `totalAvaliacoes` contar só CMJ é intencional? | **aberto** — comportamento documentado, mas a escolha é de produto |
+| D5 | `POST`/`PATCH /alunos` devolverem `totalAvaliacoes` | **aberto** — não implementado |
+| B2 | seções do relatório que a API não entrega | **aberto** — depende das fórmulas reais |
+| B3 | o que significa compartilhar | **aberto** — decisão de produto |
+| B4 | filiais entram no MVP? | **aberto** — não existem no schema |
+| B5 | o MVP edita avaliação? | **aberto** — hoje só excluir e recriar |
 
 ## Rodando
 

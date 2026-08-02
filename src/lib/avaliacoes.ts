@@ -12,7 +12,7 @@ import type { MedidasDTO } from "@/lib/schemas";
  * fixas) e o formato do banco (tabela `Medida`, uma linha por codigo).
  */
 
-type LinhaMedida = {
+export type LinhaMedida = {
   codigo: string;
   unidade: string;
   direito: number | null;

@@ -104,6 +104,20 @@ export const listarAvaliacoesQuerySchema = z.object({
   limite: z.coerce.number().int().min(1).max(200).default(50),
 });
 
+/**
+ * `semanas` e opcional **sem default de proposito**: ausente = historico
+ * inteiro, que e o comportamento historico da rota. Um default aqui mudaria
+ * calado os numeros de todo relatorio ja existente.
+ */
+export const relatorioQuerySchema = z.object({
+  semanas: z.coerce
+    .number()
+    .int("semanas precisa ser inteiro")
+    .min(1, "semanas precisa ser pelo menos 1")
+    .max(520, "semanas nao pode passar de 520 (10 anos)")
+    .optional(),
+});
+
 // --- tipos exportados pro front -------------------------------------------
 
 export type CriarAvaliacaoDTO = z.infer<typeof criarAvaliacaoSchema>;
