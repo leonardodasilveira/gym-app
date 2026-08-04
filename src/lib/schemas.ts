@@ -70,6 +70,29 @@ export const criarAvaliacaoSchema = z.object({
   observacoes: z.string().trim().optional(),
 });
 
+/**
+ * `PATCH /avaliacoes/:id`. Cada bloco e opcional e, quando vem, **substitui o
+ * bloco inteiro** — nao existe atualizar uma medida sozinha.
+ *
+ * O motivo e o mesmo que faz `medidas` ter todas as chaves sempre presentes: o
+ * formulario edita a avaliacao toda de uma vez, e merge parcial reabriria a
+ * duvida entre "nao mandei" e "apaguei", que e a versao em API do problema do
+ * zero significando nao medido.
+ *
+ * `observacoes` e `nullish` pela mesma razao do `dataNascimento` do aluno
+ * (frontend-plan.md D3): omitir mantem, `null` limpa, texto troca. Sem o `null`
+ * nao existiria payload capaz de apagar uma observacao.
+ *
+ * `alunoId` fica de fora de proposito: avaliacao nao muda de aluno. Pra isso,
+ * apagar e criar de novo.
+ */
+export const atualizarAvaliacaoSchema = z.object({
+  dataAvaliacao: z.iso.date("dataAvaliacao no formato AAAA-MM-DD").optional(),
+  medidas: medidasSchema.optional(),
+  testes: z.array(testeSchema).optional(),
+  observacoes: z.string().trim().nullish(),
+});
+
 // --- aluno -----------------------------------------------------------------
 
 export const criarAlunoSchema = z.object({
@@ -121,6 +144,7 @@ export const relatorioQuerySchema = z.object({
 // --- tipos exportados pro front -------------------------------------------
 
 export type CriarAvaliacaoDTO = z.infer<typeof criarAvaliacaoSchema>;
+export type AtualizarAvaliacaoDTO = z.infer<typeof atualizarAvaliacaoSchema>;
 export type MedidasDTO = z.infer<typeof medidasSchema>;
 export type TesteDTO = z.infer<typeof testeSchema>;
 export type TentativaDTO = z.infer<typeof tentativaSchema>;

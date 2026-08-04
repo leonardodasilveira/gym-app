@@ -8,6 +8,7 @@ import {
   paraData,
   serializarAvaliacao,
   siglaDaMedida,
+  testesParaCriacao,
   type AvaliacaoResponse,
   type LinhaMedida,
 } from "@/lib/avaliacoes";
@@ -95,6 +96,49 @@ describe("null e zero sao coisas diferentes", () => {
     expect(voltou.cmj.valor).toBe(42.8);
     expect(voltou.mobilidadeTornozelo.direito).toBeNull();
     expect(voltou.mobilidadeQuadril.esquerdo).toBeNull();
+  });
+});
+
+describe("testesParaCriacao", () => {
+  const teste = (codigo: string, ordens: number[]) => ({
+    codigo,
+    nome: codigo,
+    tentativas: ordens.map((ordem) => ({
+      ordem,
+      repeticoes: 8,
+      carga: { valor: 40, unidade: "kg" as const },
+      tempo: { valor: 9.8, unidade: "s" as const },
+    })),
+  });
+
+  test("a ordem do teste vem da posicao, nao do cliente", () => {
+    const criacao = testesParaCriacao([teste("SJ", [1]), teste("AGACHAMENTO", [1])]);
+
+    expect(criacao.map((t) => [t.codigo, t.ordem])).toEqual([
+      ["SJ", 0],
+      ["AGACHAMENTO", 1],
+    ]);
+  });
+
+  test("a ordem da tentativa vem do DTO, porque ali e dado do dominio", () => {
+    const criacao = testesParaCriacao([teste("SJ", [3, 1, 2])]);
+
+    expect(criacao[0].tentativas.create.map((t) => t.ordem)).toEqual([3, 1, 2]);
+  });
+
+  test("carga e tempo viram colunas achatadas", () => {
+    const criacao = testesParaCriacao([teste("SJ", [1])]);
+
+    expect(criacao[0].tentativas.create[0]).toMatchObject({
+      cargaValor: 40,
+      cargaUnidade: "kg",
+      tempoValor: 9.8,
+      tempoUnidade: "s",
+    });
+  });
+
+  test("lista vazia nao inventa teste", () => {
+    expect(testesParaCriacao([])).toEqual([]);
   });
 });
 

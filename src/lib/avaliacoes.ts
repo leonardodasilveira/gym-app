@@ -5,7 +5,7 @@ import {
   type ChaveMedida,
   type Lado,
 } from "@/lib/medidas";
-import type { MedidasDTO } from "@/lib/schemas";
+import type { CriarAvaliacaoDTO, MedidasDTO } from "@/lib/schemas";
 
 /**
  * Conversao entre o formato do contrato do front (objeto `medidas` com chaves
@@ -63,6 +63,34 @@ export function linhasParaMedidas(linhas: LinhaMedida[]): MedidasDTO {
   });
 
   return Object.fromEntries(entradas) as MedidasDTO;
+}
+
+/**
+ * `testes` do DTO -> payload de `create` aninhado do Prisma.
+ *
+ * A `ordem` do teste sai da posicao no array, nao do cliente: o front manda a
+ * lista na ordem em que o professor digitou e nao precisa numerar nada. Ja a
+ * `ordem` da tentativa vem do DTO, porque ali ela e dado do dominio (a sequencia
+ * das series) e nao apresentacao.
+ *
+ * Usado pelo POST e pelo PATCH — os dois gravam o bloco de testes inteiro.
+ */
+export function testesParaCriacao(testes: CriarAvaliacaoDTO["testes"]) {
+  return testes.map((teste, indice) => ({
+    codigo: teste.codigo,
+    nome: teste.nome,
+    ordem: indice,
+    tentativas: {
+      create: teste.tentativas.map((tentativa) => ({
+        ordem: tentativa.ordem,
+        repeticoes: tentativa.repeticoes,
+        cargaValor: tentativa.carga.valor,
+        cargaUnidade: tentativa.carga.unidade,
+        tempoValor: tentativa.tempo.valor,
+        tempoUnidade: tentativa.tempo.unidade,
+      })),
+    },
+  }));
 }
 
 export type MedidaDetalhada = {

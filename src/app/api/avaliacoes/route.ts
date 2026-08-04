@@ -3,6 +3,7 @@ import {
   medidasParaLinhas,
   paraData,
   serializarAvaliacao,
+  testesParaCriacao,
 } from "@/lib/avaliacoes";
 import { handler, json, naoEncontrado, parseBody, parseQuery } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
@@ -46,23 +47,7 @@ export const POST = handler(async (request) => {
       dataAvaliacao: paraData(dados.dataAvaliacao),
       observacoes: dados.observacoes ?? null,
       medidas: { create: medidasParaLinhas(dados.medidas) },
-      testes: {
-        create: dados.testes.map((teste, indice) => ({
-          codigo: teste.codigo,
-          nome: teste.nome,
-          ordem: indice,
-          tentativas: {
-            create: teste.tentativas.map((tentativa) => ({
-              ordem: tentativa.ordem,
-              repeticoes: tentativa.repeticoes,
-              cargaValor: tentativa.carga.valor,
-              cargaUnidade: tentativa.carga.unidade,
-              tempoValor: tentativa.tempo.valor,
-              tempoUnidade: tentativa.tempo.unidade,
-            })),
-          },
-        })),
-      },
+      testes: { create: testesParaCriacao(dados.testes) },
     },
     include: avaliacaoCompleta,
   });
