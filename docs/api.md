@@ -9,7 +9,11 @@ Base local: `http://localhost:3000/api`
 Os tipos podem ser importados direto — **entrada e saída**:
 
 ```ts
-import type { CriarAvaliacaoDTO, CriarAlunoDTO } from "@/lib/schemas";
+import type {
+  CriarAvaliacaoDTO,
+  AtualizarAvaliacaoDTO,
+  CriarAlunoDTO,
+} from "@/lib/schemas";
 import type { AvaliacaoResponse } from "@/lib/avaliacoes";
 import type { RelatorioResponse } from "@/lib/relatorio";
 ```
@@ -105,11 +109,9 @@ No `PATCH`, `dataNascimento` tem três comportamentos distintos:
 | `GET` | `/avaliacoes?alunoId=<uuid>&limite=50` | lista, mais recente primeiro |
 | `POST` | `/avaliacoes` | cria — recebe o `CriarAvaliacaoDTO` |
 | `GET` | `/avaliacoes/:id` | avaliação completa |
+| `PATCH` | `/avaliacoes/:id` | edita — recebe o `AtualizarAvaliacaoDTO` |
 | `DELETE` | `/avaliacoes/:id` | remove |
 | `GET` | `/avaliacoes/:id/relatorio` | dados do relatório de performance |
-
-Não há edição: para corrigir uma avaliação, `DELETE` e `POST` de novo. É a única
-divergência do **R6** que continua de pé — ver [pendências](#pendências-levantadas-pelo-front) (B5).
 
 O que `GET /avaliacoes` e `GET /avaliacoes/:id` devolvem tem tipo pronto:
 
@@ -174,6 +176,43 @@ Regras de validação relevantes:
   teste. Atenção: isso é **constraint de banco**, não validação de schema —
   a violação volta como **409 sem indicar o campo**, ao contrário do 422, que
   traz `issues`. Vale prevenir no cliente.
+
+### `PATCH /avaliacoes/:id`
+
+Edita uma avaliação existente. Devolve `200` com a avaliação completa, no mesmo
+formato do `GET`.
+
+**Cada bloco enviado substitui o bloco inteiro; bloco omitido fica como estava.**
+Não existe atualizar uma medida sozinha — o mesmo motivo que faz `medidas` ter
+todas as chaves sempre presentes: merge parcial reabriria a dúvida entre "não
+mandei" e "apaguei".
+
+| Campo | Omitido | Enviado |
+| --- | --- | --- |
+| `dataAvaliacao` | mantém | troca |
+| `medidas` | mantém as 5 | substitui as 5 |
+| `testes` | mantém a lista | substitui a lista (`[]` apaga todos) |
+| `observacoes` | mantém | texto troca · **`null` limpa** |
+
+`alunoId` não é aceito: avaliação não muda de aluno. Se precisar, `DELETE` e
+`POST` de novo.
+
+Corpo vazio (`{}`) é válido e não muda nada — devolve o estado atual.
+
+```jsonc
+// só corrigir a observação, sem tocar em medidas nem testes
+{ "observacoes": "Refez o CMJ, valor conferido." }
+
+// limpar a observação
+{ "observacoes": null }
+```
+
+Erros: `404` id inexistente · `422` payload inválido, com `issues[].field` no
+mesmo formato do `POST` (`testes.0.tentativas.0.carga.valor`) · `409` código de
+teste repetido, sem indicar campo, igual ao `POST`.
+
+A gravação é transacional: se a recriação falhar, o conteúdo antigo continua
+lá — um payload recusado não deixa a avaliação vazia.
 
 ## `GET /avaliacoes/:id/relatorio`
 
@@ -332,7 +371,7 @@ Resposta do backend às perguntas de `frontend-plan.md` §12. O que está
 | B2 | seções do relatório que a API não entrega | **aberto** — depende das fórmulas reais |
 | B3 | o que significa compartilhar | **aberto** — decisão de produto |
 | B4 | filiais entram no MVP? | **aberto** — não existem no schema |
-| B5 | o MVP edita avaliação? | **aberto** — hoje só excluir e recriar |
+| B5 | o MVP edita avaliação? | **resolvido** — `PATCH /avaliacoes/:id`, bloco a bloco. Fecha a última divergência do R6 |
 
 ## Rodando
 
