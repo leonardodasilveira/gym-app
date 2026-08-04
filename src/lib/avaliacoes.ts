@@ -132,7 +132,14 @@ export const formatarData = (data: Date): string =>
 
 // --- serializacao da resposta ---------------------------------------------
 
-type AvaliacaoCompleta = {
+/**
+ * Forma minima da avaliacao que o serializador precisa. Estrutural de proposito,
+ * igual ao `AvaliacaoParaRelatorio` de src/lib/relatorio.ts: o resultado do
+ * Prisma satisfaz sem precisar do tipo gerado.
+ *
+ * E a **entrada** do serializador. A saida e `AvaliacaoResponse`, mais abaixo.
+ */
+type AvaliacaoParaSerializar = {
   id: string;
   alunoId: string;
   dataAvaliacao: Date;
@@ -155,7 +162,7 @@ type AvaliacaoCompleta = {
 };
 
 /** Devolve a avaliacao no mesmo formato do DTO de entrada, mais id e criadoEm. */
-export function serializarAvaliacao(avaliacao: AvaliacaoCompleta) {
+export function serializarAvaliacao(avaliacao: AvaliacaoParaSerializar) {
   return {
     id: avaliacao.id,
     alunoId: avaliacao.alunoId,
@@ -175,6 +182,28 @@ export function serializarAvaliacao(avaliacao: AvaliacaoCompleta) {
     criadoEm: avaliacao.criadoEm.toISOString(),
   };
 }
+
+/**
+ * Contrato de saida de `GET /avaliacoes` e `GET /avaliacoes/:id`. Derivado da
+ * serializacao, nao declarado a mao — mudar o formato acima quebra o typecheck
+ * de quem consome, que e a mitigacao pedida pelo risco R3 do frontend-plan.md.
+ *
+ * O front nao precisa mais fazer `ReturnType<typeof serializarAvaliacao>`:
+ *
+ *   import type { AvaliacaoResponse } from "@/lib/avaliacoes";
+ *
+ * Importar daqui e seguro: este modulo nao toca `@/lib/prisma` nem `@/lib/http`,
+ * entao nada server-only vai junto (frontend-plan.md 7.4). E todos os campos ja
+ * sao primitivos ou string — nenhum `Date` sobrevive ate a resposta —, entao o
+ * tipo vale igual antes e depois do JSON.
+ */
+export type AvaliacaoResponse = ReturnType<typeof serializarAvaliacao>;
+
+/** Um exercicio dentro da avaliacao, como sai na resposta. */
+export type TesteResponse = AvaliacaoResponse["testes"][number];
+
+/** Uma serie do exercicio, como sai na resposta. */
+export type TentativaResponse = TesteResponse["tentativas"][number];
 
 /** `include` padrao pra carregar a avaliacao inteira de uma vez. */
 export const avaliacaoCompleta = {
