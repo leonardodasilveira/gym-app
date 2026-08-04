@@ -10,6 +10,7 @@ Os tipos podem ser importados direto — **entrada e saída**:
 
 ```ts
 import type { CriarAvaliacaoDTO, CriarAlunoDTO } from "@/lib/schemas";
+import type { AvaliacaoResponse } from "@/lib/avaliacoes";
 import type { RelatorioResponse } from "@/lib/relatorio";
 ```
 
@@ -106,6 +107,24 @@ No `PATCH`, `dataNascimento` tem três comportamentos distintos:
 | `GET` | `/avaliacoes/:id` | avaliação completa |
 | `DELETE` | `/avaliacoes/:id` | remove |
 | `GET` | `/avaliacoes/:id/relatorio` | dados do relatório de performance |
+
+Não há edição: para corrigir uma avaliação, `DELETE` e `POST` de novo. É a única
+divergência do **R6** que continua de pé — ver [pendências](#pendências-levantadas-pelo-front) (B5).
+
+O que `GET /avaliacoes` e `GET /avaliacoes/:id` devolvem tem tipo pronto:
+
+```ts
+import type {
+  AvaliacaoResponse,   // a avaliação inteira
+  TesteResponse,       // um exercício dela
+  TentativaResponse,   // uma série do exercício
+} from "@/lib/avaliacoes";
+```
+
+Derivado do serializador real, igual ao `RelatorioResponse` — não precisa mais
+de `ReturnType<typeof serializarAvaliacao>`. Importar é seguro: o módulo não
+toca `@/lib/prisma` nem `@/lib/http`, e nenhum `Date` sobrevive até a resposta,
+então o tipo vale igual antes e depois do JSON.
 
 ### `POST /avaliacoes`
 
@@ -305,6 +324,7 @@ Resposta do backend às perguntas de `frontend-plan.md` §12. O que está
 | D4 | `perfil`/`nivel` viriam acentuados? | **resolvido** — sim, prontos pra exibir |
 | D6 | o front pode importar `MEDIDAS` de `@/lib/medidas`? | **sim** — o módulo não tem nenhum import, é catálogo estático e fonte única da verdade. `GET /medidas` existe pra quem preferir buscar |
 | D7 | exportar `RelatorioResponse` | **resolvido** — derivado, em `@/lib/relatorio` |
+| R3 | contrato de saída de avaliação não tipado | **resolvido** — `AvaliacaoResponse`, `TesteResponse` e `TentativaResponse` em `@/lib/avaliacoes`. Dá pra trocar o `ReturnType<typeof serializarAvaliacao>` de `features/alunos/tipos.ts:35` pelo import direto |
 | D1 | recortar até a data da avaliação relatada | **parcial** — com `?semanas=` a janela termina nela; sem o parâmetro, ainda cobre tudo |
 | D8 | service layer em `src/lib/` | **começou** — `relatorio.ts` é o primeiro caso; sem plano de estender ainda |
 | D2 | `totalAvaliacoes` contar só CMJ é intencional? | **aberto** — comportamento documentado, mas a escolha é de produto |

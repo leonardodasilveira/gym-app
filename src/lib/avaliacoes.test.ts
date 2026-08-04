@@ -8,6 +8,7 @@ import {
   paraData,
   serializarAvaliacao,
   siglaDaMedida,
+  type AvaliacaoResponse,
   type LinhaMedida,
 } from "@/lib/avaliacoes";
 import { MEDIDAS } from "@/lib/medidas";
@@ -132,6 +133,17 @@ describe("datas atravessam sem fuso horario", () => {
 });
 
 describe("serializarAvaliacao", () => {
+  const respostaDeExemplo = (): AvaliacaoResponse =>
+    serializarAvaliacao({
+      id: "aval-1",
+      alunoId: "aluno-1",
+      dataAvaliacao: paraData("2026-04-30"),
+      observacoes: null,
+      criadoEm: new Date("2026-04-30T13:00:00.000Z"),
+      medidas: medidasParaLinhas(medidas()),
+      testes: [],
+    });
+
   test("devolve o mesmo formato do DTO de entrada, mais id e criadoEm", () => {
     const resposta = serializarAvaliacao({
       id: "aval-1",
@@ -167,5 +179,23 @@ describe("serializarAvaliacao", () => {
       carga: { valor: 60, unidade: "kg" },
       tempo: { valor: 11.9, unidade: "s" },
     });
+  });
+
+  test("nenhum Date sobrevive ate a resposta", () => {
+    // E o que faz `AvaliacaoResponse` valer igual antes e depois do JSON: se um
+    // Date escapasse, o tipo diria `Date` e o front receberia string.
+    const resposta = respostaDeExemplo();
+
+    for (const valor of Object.values(resposta)) {
+      expect(valor).not.toBeInstanceOf(Date);
+    }
+    expect(resposta.dataAvaliacao).toBe("2026-04-30");
+    expect(resposta.criadoEm).toBe("2026-04-30T13:00:00.000Z");
+  });
+
+  test("a resposta atravessa o JSON sem perder nada", () => {
+    const resposta = respostaDeExemplo();
+
+    expect(JSON.parse(JSON.stringify(resposta))).toEqual(resposta);
   });
 });
