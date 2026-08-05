@@ -3,18 +3,11 @@ import {
   linhasParaAmplitude,
   linhasParaMedidasDetalhadas,
   linhasParaSaltos,
+  linhasParaVelocidade,
   type LinhaMedida,
   type LinhaVelocidade,
 } from "@/lib/avaliacoes";
-import {
-  ajustarCurva,
-  calcularScore,
-  classificarPerfil,
-  r2EhInformativo,
-  velocidadeMedia,
-  type PontoCurva,
-} from "@/lib/calculos";
-import { exercicioPorCodigo } from "@/lib/medidas";
+import { EXERCICIOS_VELOCIDADE } from "@/lib/medidas";
 import { textosPlaceholder } from "@/lib/textos";
 
 /**
@@ -27,8 +20,19 @@ import { textosPlaceholder } from "@/lib/textos";
  * front faz `import type` sem arrastar modulo server-only (frontend-plan.md
  * 7.4) e sem depender de um arquivo `route.ts`.
  *
- * ⚠️ Curva, score e textos sao provisorios — ver src/lib/calculos.ts e
- * src/lib/textos.ts.
+ * ⚠️ Os textos sao provisorios — ver src/lib/textos.ts.
+ *
+ * ## A curva forca-velocidade saiu do relatorio (05/08/2026)
+ *
+ * O relatorio nao devolve mais `curva`, `ajuste`, `perfil` nem `score`. Decisao
+ * de produto, tomada depois que o modelo v2 reduziu a curva de 8 pontos para no
+ * maximo 2: com 2 pontos a reta e exata por construcao, `r2` da 1 sempre e o
+ * perfil e o score viram funcao de duas medicoes. Nao havia como sustentar as
+ * secoes 2, 3, 4, 7 e 10 do relatorio em cima disso
+ * (evaluation-model-v2-proposal.md secao 9.4).
+ *
+ * No lugar entra o dado **medido**: carga e tempo de cada exercicio, como o
+ * professor digitou. Sem derivacao, sem deslocamento estimado, sem regressao.
  */
 
 export type PontoCmj = { data: string; valor: number };
@@ -74,40 +78,29 @@ export function montarRelatorio(
   historicoCompleto: PontoCmj[],
   semanas?: number,
 ) {
-  /**
-   * ⚠️ Um ponto por exercicio — no maximo **2**, contra os 5 do seed v1 e os 8
-   * da planilha real. O modelo v2 removeu as tentativas, e com elas a maior
-   * parte da curva (evaluation-model-v2-proposal.md §9.4).
-   *
-   * Esta e a adaptacao mecanica que mantem a rota funcionando; **nao** e a
-   * resposta ao bloqueio B2. O que fazer com as secoes do relatorio que foram
-   * desenhadas sobre 8 pontos continua sendo decisao de produto, e ate ela vir
-   * a resposta carrega `curva.suficiencia` dizendo a verdade sobre o que ali
-   * dentro ainda significa alguma coisa.
-   *
-   * Exercicio com carga ou tempo faltando fica fora da curva em vez de virar
-   * zero — mesma regra do CMJ ausente no historico. O schema ja garante que os
-   * dois vem juntos ou nenhum vem, entao na pratica isto filtra o exercicio nao
-   * medido.
-   */
-  const pontos: PontoCurva[] = avaliacao.velocidades
-    .flatMap((linha) => {
-      if (linha.cargaKg == null || linha.tempoSegundos == null) return [];
-      return [
-        {
-          testeCodigo: linha.codigo,
-          testeNome: exercicioPorCodigo(linha.codigo)?.nome ?? linha.codigo,
-          cargaKg: linha.cargaKg,
-          velocidadeMs: velocidadeMedia({
-            codigo: linha.codigo,
-            tempoSegundos: linha.tempoSegundos,
-          }),
-        },
-      ];
-    })
-    .sort((a, b) => a.cargaKg - b.cargaKg);
+  const porCodigo = new Map(
+    avaliacao.velocidades.map((linha) => [linha.codigo, linha]),
+  );
 
-  const ajuste = ajustarCurva(pontos);
+  /**
+   * Carga e tempo como o professor digitou, um item por exercicio do catalogo.
+   * Nenhuma derivacao: e a diferenca em relacao a antiga `curva.pontos`, que
+   * publicava uma velocidade obtida de um deslocamento chutado.
+   *
+   * Exercicio nao medido continua aparecendo, com os dois valores `null` — a
+   * mesma regra das medidas. Some-lo faria a tabela do relatorio mudar de
+   * tamanho conforme o preenchimento.
+   */
+  const velocidadeDetalhada = EXERCICIOS_VELOCIDADE.map((exercicio) => {
+    const linha = porCodigo.get(exercicio.codigo);
+    return {
+      codigo: exercicio.codigo,
+      nome: exercicio.nome,
+      cargaKg: linha?.cargaKg ?? null,
+      tempoSegundos: linha?.tempoSegundos ?? null,
+    };
+  });
+
   const dataAvaliacao = formatarData(avaliacao.dataAvaliacao);
   const historicoCmj = recortarHistorico(
     historicoCompleto,
@@ -143,33 +136,15 @@ export function montarRelatorio(
     saltos: linhasParaSaltos(avaliacao.medidas),
     // Mesmo conteudo, achatado e com a sigla da planilha pronta pra imprimir.
     medidasDetalhadas: linhasParaMedidasDetalhadas(avaliacao.medidas),
-    curva: {
-      pontos,
-      cargaMaximaKg: pontos.at(-1)?.cargaKg ?? null,
-      ajuste,
-      perfil: classificarPerfil(ajuste),
-      /**
-       * O que o front precisa saber pra nao apresentar como informacao algo que
-       * nao e. Existe porque a alternativa — deixar o front deduzir de
-       * `pontos.length` — espalharia a mesma regra por varios componentes.
-       */
-      suficiencia: {
-        pontos: pontos.length,
-        /** Com <2 pontos nao existe reta: `ajuste` vem `null`. */
-        temAjuste: ajuste !== null,
-        /** Com 2 pontos `r2` e sempre 1 por construcao — nao exibir como qualidade. */
-        r2Informativo: r2EhInformativo(ajuste),
-      },
-    },
+    velocidade: linhasParaVelocidade(avaliacao.velocidades),
+    // Mesmo conteudo, com o nome do exercicio pronto pra imprimir.
+    velocidadeDetalhada,
     historicoCmj,
     resumoCmj: resumirCmj(historicoCmj),
-    score: calcularScore(ajuste),
     textos: textosPlaceholder(),
     // Deixa explicito pro front (e pra demo) o que ainda nao e real.
+    // `curva` e `score` sairam daqui junto com as secoes que descreviam.
     provisorio: {
-      curva:
-        "Velocidade derivada de tempo com deslocamento estimado; no maximo 2 pontos no modelo v2",
-      score: "Formula propria, sem validacao",
       textos: "Lorem ipsum",
     },
   };

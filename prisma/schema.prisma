@@ -76,7 +76,8 @@ model Medida {
 /// As unidades (kg, s) vivem no nome da coluna em vez de numa coluna propria:
 /// sao fixas pelo dominio e o payload v2 nao as transporta.
 ///
-/// A velocidade nao e armazenada — e derivada em src/lib/calculos.ts.
+/// Guarda so o que foi medido. A velocidade em m/s deixou de ser derivada em
+/// 05/08/2026, junto com a curva forca-velocidade — ver src/lib/relatorio.ts.
 model MedidaVelocidade {
   id            String @id @default(uuid())
   avaliacaoId   String

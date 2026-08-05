@@ -28,12 +28,15 @@ mesmos nomes de chave, mesma nullabilidade, mesmos paths de erro. Com isto
 publicado, `contrato-v2.ts` cumpriu seu prazo de vida e deve ser apagado
 (`e5-v2-implementation-spec.md` §13.5).
 
-Duas coisas continuam **pendentes de decisão**, e estão marcadas onde aparecem:
+Dos dois bloqueios que a proposta levantou, **um foi decidido e o outro deixou
+de bloquear**:
 
-- **unidade dos 4 saltos novos** — vem `null` no catálogo, e não bloqueia o
-  contrato, porque o v2 não transporta unidade;
-- **futuro da curva força-velocidade**, que caiu de 8 para no máximo 2 pontos
-  — ver [a seção sobre isso](#️-a-curva-encolheu-de-8-pontos-para-2--decisão-de-produto-pendente).
+- **curva força-velocidade** — decidido em 05/08/2026:
+  [saiu do relatório](#-a-curva-força-velocidade-saiu-do-relatório), junto com
+  perfil e score;
+- **unidade dos 4 saltos novos** — segue sem resposta do cliente, mas **não
+  bloqueia nada**: o v2 não transporta unidade, então ela vive só no catálogo,
+  onde vem `null` até alguém confirmar.
 
 ## Tipos
 
@@ -320,8 +323,8 @@ propósito** — sem o parâmetro nada muda em relação ao comportamento anteri
 para nenhum relatório já existente passar a mostrar números diferentes em
 silêncio.
 
-O recorte afeta `historicoCmj`, `resumoCmj` e `periodo`. **Não afeta `curva`
-nem `score`**, que saem da própria avaliação relatada, não do histórico.
+O recorte afeta `historicoCmj`, `resumoCmj` e `periodo`. **Não afeta
+`velocidade`**, que sai da própria avaliação relatada, não do histórico.
 
 `periodo.semanas` diz qual janela foi aplicada, ou `null` quando é o histórico
 inteiro — use isso para rotular a tela, em vez de assumir o que os números
@@ -356,29 +359,15 @@ Resposta abreviada:
     }
   ],
 
-  "curva": {
-    "pontos": [
-      { "testeCodigo": "SQUAT_JUMP", "testeNome": "Squat Jump",
-        "cargaKg": 20, "velocidadeMs": 0.379 }
-      // ...ordenados por carga crescente. NO MÁXIMO 2 — ver abaixo
-    ],
-    "cargaMaximaKg": 60,       // pode vir null — ver notas abaixo
-    "ajuste": {
-      "inclinacao": -0.00243,   // m/s por kg
-      "v0": 0.428,              // velocidade teórica máxima
-      "f0": 176.3,              // carga teórica máxima
-      "r2": 1,                  // ⚠️ com 2 pontos é sempre 1 — ver abaixo
-      "pontosUsados": 2,
-      "cargaOtimaKg": 88.1,
-      "velocidadeOtimaMs": 0.214
-    },
-    "perfil": "Orientado a força",
-    "suficiencia": {
-      "pontos": 2,
-      "temAjuste": true,
-      "r2Informativo": false    // não exiba r2 como qualidade quando for false
-    }
+  // carga e tempo como o professor digitou — sem derivação
+  "velocidade": {
+    "squatJump":   { "cargaKg": 20, "tempoSegundos": 1.43 },
+    "agachamento": { "cargaKg": 60, "tempoSegundos": 1.91 }
   },
+  "velocidadeDetalhada": [
+    { "codigo": "SQUAT_JUMP",  "nome": "Squat Jump",  "cargaKg": 20, "tempoSegundos": 1.43 },
+    { "codigo": "AGACHAMENTO", "nome": "Agachamento", "cargaKg": 60, "tempoSegundos": 1.91 }
+  ],
 
   "historicoCmj": [ { "data": "2025-07-10", "valor": 40 } ],
   "resumoCmj": {
@@ -389,10 +378,9 @@ Resposta abreviada:
     "variacaoVsPico": -3.15
   },
 
-  "score":  { "valor": 50, "nivel": "Baixo" },
   "textos": { "melhorias": [], "pontosAtencao": [], "recomendacoes": [], "conclusao": "" },
 
-  "provisorio": { "curva": "...", "score": "...", "textos": "..." }
+  "provisorio": { "textos": "Lorem ipsum" }
 }
 ```
 
@@ -411,46 +399,48 @@ divergirem em silêncio: mudou o formato, o `typecheck` acusa em quem consome.
 propósito — quem vai ao banco é o route handler. Dá pra fazer `import type`
 do front sem arrastar módulo server-only.
 
-### ⚠️ A curva encolheu de 8 pontos para 2 — decisão de produto pendente
+### 🚫 A curva força-velocidade saiu do relatório
 
-> Atenção à sigla: este é o bloqueio **B2 de
-> `evaluation-model-v2-proposal.md` §20**, que não é o mesmo B2 da tabela de
-> pendências no fim deste arquivo.
+**Decisão de produto de 05/08/2026.** A resposta **não tem mais** `curva`,
+`ajuste`, `perfil`, `score` nem `provisorio.curva`/`provisorio.score`.
 
-No modelo v1 a curva somava uma tentativa por ponto: o seed dava 5 e a planilha
-real do professor tem 8. **No v2 sobra no máximo 1 ponto por exercício, ou
-seja 2 no total.** Consequências, todas verificáveis na resposta:
+Motivo: o modelo v2 reduziu a curva de 8 pontos (planilha real do professor)
+para no máximo 2 — um por exercício. Com 2 pontos a reta é exata por
+construção, `r2` daria `1` sempre, e perfil e score viravam função de duas
+medições. As seções 2, 3, 4, 7 e 10 do relatório foram desenhadas sobre 8
+pontos e não se sustentavam.
 
-| Situação | O que acontece |
-| --- | --- |
-| 2 exercícios medidos | há reta, mas `r2` é **sempre `1`** |
-| 1 exercício medido | `ajuste: null`, `perfil: "Dados insuficientes"` |
-| cargas iguais nos 2 | `ajuste: null` (regressão sem solução) |
+No lugar entra o dado **medido**, sem nenhuma derivação:
 
-O `r2 = 1` **não é ajuste perfeito** — é ausência de graus de liberdade: uma
-reta passa exatamente por dois pontos, por construção. Exibir isso como "índice
-de qualidade da curva" apresentaria uma constante como se fosse informação.
+```jsonc
+"velocidade": {                          // mesmo formato do DTO
+  "squatJump":   { "cargaKg": 20, "tempoSegundos": 1.43 },
+  "agachamento": { "cargaKg": 60, "tempoSegundos": 1.91 }
+},
+"velocidadeDetalhada": [                 // com o nome pronto pra imprimir
+  { "codigo": "SQUAT_JUMP",  "nome": "Squat Jump",  "cargaKg": 20, "tempoSegundos": 1.43 },
+  { "codigo": "AGACHAMENTO", "nome": "Agachamento", "cargaKg": 60, "tempoSegundos": 1.91 }
+]
+```
 
-Por isso a resposta traz `curva.suficiencia`. **Use `r2Informativo` para decidir
-se exibe `r2`**, em vez de deduzir de `pontos.length` em cada componente.
+Exercício não medido **continua aparecendo**, com os dois valores `null` — a
+tabela do relatório não muda de tamanho conforme o preenchimento.
 
-Isto é uma adaptação mecânica para a rota continuar funcionando e não mentir —
-**não é a resposta ao bloqueio**. As seções 2, 3, 4, 7 e 10 do relatório foram
-desenhadas sobre 8 pontos e não se sustentam com 2. Se a curva continua no
-produto, vira comparação de dois pontos, ou sai do MVP, é decisão de produto,
-ainda pendente (`evaluation-model-v2-proposal.md` §9.4, §15.8).
+Sumiu junto a velocidade em m/s derivada de um deslocamento chutado (0,5 m).
+Era o número mais frágil da resposta: no v2 ele teria virado estimativa pura,
+já que a fórmula perdeu o termo `repeticoes`. O relatório agora publica o tempo
+cronometrado, que é o que existe de fato.
+
+> `tempoSegundos` fica em segundos por ora, para a demo. Se o professor
+> confirmar que já tem a VMP do encoder, o campo pode virar velocidade — ver
+> [o que é provisório](#o-que-é-provisório).
 
 Notas pro front:
 
-- **`ajuste` pode vir `null`** — acontece com menos de 2 pontos de carga, ou se
-  as duas cargas forem iguais. Nesse caso `perfil` vem `"Dados insuficientes"`.
 - **`resumoCmj` pode vir `null`** se o aluno nunca teve CMJ medido.
-- **`curva.cargaMaximaKg` pode vir `null`** quando nenhum exercício de
-  velocidade foi medido.
+- **`cargaKg` e `tempoSegundos` podem vir `null`** — exercício não medido.
 - **`medidasDetalhadas[].unidade` pode vir `null`** — os quatro saltos
   provisórios. Imprima o valor sem sufixo, nunca assuma `cm`.
-- Exercício com carga ou tempo faltando **fica fora da curva** em vez de virar
-  zero, mesma regra do CMJ ausente no histórico.
 - `historicoCmj` **pula** avaliações sem CMJ em vez de mandar zero (era um bug
   conhecido da planilha, ver `planilha-atual.md`).
 - **`periodo.totalAvaliacoes` conta só as avaliações com CMJ**, não o total de
@@ -458,36 +448,40 @@ Notas pro front:
   "total de avaliações".
 - **`periodo` e `resumoCmj` cobrem o histórico inteiro do aluno** por default,
   não a avaliação relatada — use `?semanas=` para recortar, e `periodo.semanas`
-  para rotular. `score` e `curva` sempre saem da avaliação relatada.
-- `perfil` e `nivel` vêm **acentuados** e prontos pra exibição; o front não
-  precisa traduzir nem corrigir. Valores possíveis: `perfil` ∈ {`Orientado a
-  força`, `Equilibrado`, `Orientado a velocidade`, `Dados insuficientes`};
-  `nivel` ∈ {`Alto`, `Médio`, `Baixo`, `Inicial`, `Sem dados`}.
+  para rotular. `velocidade` sempre sai da avaliação relatada.
 - O objeto `provisorio` descreve, em texto, o que ainda não é real. Dá pra usar
   como tooltip/aviso na tela durante a demo — e sumir com ele depois.
 
 ## O que é provisório
 
-Nada disso é opinião do professor ainda. Está tudo isolado em dois arquivos:
+Sobrou **um** arquivo. Os números derivados saíram todos do produto em
+05/08/2026, junto com a curva:
 
 | Arquivo | O que tem | Por quê |
 | --- | --- | --- |
-| `src/lib/calculos.ts` | velocidade, curva, perfil, score | as fórmulas reais estão na planilha do professor e ainda não chegaram |
-| `src/lib/textos.ts` | melhorias, pontos de atenção, recomendações, conclusão | lorem ipsum; ainda não se sabe se ele escreve ou se o sistema gera |
+| `src/lib/textos.ts` | melhorias, pontos de atenção, recomendações, conclusão | lorem ipsum; ainda não se sabe se o professor escreve ou se o sistema gera |
 
-O ponto mais frágil: **o contrato manda `tempoSegundos`, não velocidade.** Pra
-virar m/s falta o deslocamento do movimento, que hoje é uma constante chutada
-(0,5 m) em `DESLOCAMENTO_POR_CODIGO`. Os números saem na ordem certa (mais carga
-→ mais lento), mas a escala não bate com a VMP que o professor usa hoje. Está na
-lista de dúvidas como a nº 11.
+`src/lib/calculos.ts` **não existe mais.** Ele continha a regressão da curva,
+o perfil, o score e a conversão de tempo em velocidade — tudo declaradamente
+chutado, e tudo sem consumidor depois que a curva saiu do relatório. A API não
+publica mais nenhum número que ela própria tenha inventado: só o que o professor
+digitou.
 
-⚠️ **Isso piorou no v2.** A fórmula era `repeticoes × deslocamento / tempo`; sem
-`repeticoes`, virou `deslocamento / tempo`, e o numerador passou a ser
-inteiramente estimativa nossa. Some a isso o fato de o `docs/vbt.md` registrar
+O que sobrevive dessa investigação está em `src/lib/__fixtures__/planilha.ts`:
+os 8 pontos reais transcritos das fotos da planilha, os valores que o relatório
+do professor publica, e o registro do **"buraco"** — a regressão sobre aqueles
+8 pontos dá F0 144,5, o relatório dele publica 122,1, e os próprios números dele
+não fecham entre si (pela definição de F0, seria 188). Isso não é código de
+produto, é evidência do cliente: se as fórmulas reais chegarem no `.xlsx`, é o
+alvo contra o qual medir.
+
+### Ainda em aberto: tempo ou velocidade?
+
+O contrato manda `tempoSegundos`. Ficou assim **para a demo**, por decisão de
+05/08/2026 — "qualquer coisa a gente muda depois". Mas o `docs/vbt.md` registra
 que o professor **já mede VMP com encoder**: se ele tem a velocidade na mão,
-receber `velocidadeMs` em vez de `tempoSegundos` eliminaria de uma vez o chute
-do deslocamento, a dúvida 11 e toda a derivação. Vale perguntar antes de o
-front seguir — trocar o campo depois muda o DTO
+receber `velocidadeMs` seria mais direto e eliminaria a dúvida 11 (amplitude do
+movimento) de uma vez. Trocar depois muda o DTO
 (`evaluation-model-v2-proposal.md` §12, §15.6).
 
 ## Pendências levantadas pelo front
@@ -499,7 +493,7 @@ Resposta do backend às perguntas de `frontend-plan.md` §12. O que está
 | --- | --- | --- |
 | B1 | período de 8 semanas | **resolvido** — `?semanas=`, opt-in, default inalterado |
 | D3 | `PATCH` não limpava `dataNascimento` | **resolvido** — schema virou `.nullish()` |
-| D4 | `perfil`/`nivel` viriam acentuados? | **resolvido** — sim, prontos pra exibir |
+| D4 | `perfil`/`nivel` viriam acentuados? | **obsoleto** — perfil e score saíram do relatório em 05/08/2026 |
 | D6 | o front pode importar `MEDIDAS` de `@/lib/medidas`? | **sim** — o módulo não tem nenhum import, é catálogo estático e fonte única da verdade. `GET /medidas` existe pra quem preferir buscar |
 | D7 | exportar `RelatorioResponse` | **resolvido** — derivado, em `@/lib/relatorio` |
 | R3 | contrato de saída de avaliação não tipado | **resolvido** — `AvaliacaoResponse`, `VelocidadeResponse` e `ExercicioResponse` em `@/lib/avaliacoes`. Dá pra trocar o `ReturnType<typeof serializarAvaliacao>` de `features/alunos/tipos.ts:35` pelo import direto |
@@ -508,7 +502,7 @@ Resposta do backend às perguntas de `frontend-plan.md` §12. O que está
 | D8 | service layer em `src/lib/` | **começou** — `relatorio.ts` é o primeiro caso; sem plano de estender ainda |
 | D2 | `totalAvaliacoes` contar só CMJ é intencional? | **aberto** — comportamento documentado, mas a escolha é de produto |
 | D5 | `POST`/`PATCH /alunos` devolverem `totalAvaliacoes` | **aberto** — não implementado |
-| B2 | seções do relatório que a API não entrega | **aberto** — depende das fórmulas reais |
+| B2 | seções do relatório que a API não entrega | **resolvido** — as seções que dependiam da curva saíram do MVP; o resto espera as fórmulas reais |
 | B3 | o que significa compartilhar | **aberto** — decisão de produto |
 | B4 | filiais entram no MVP? | **aberto** — não existem no schema |
 | B5 | o MVP edita avaliação? | **resolvido** — `PATCH /avaliacoes/:id`, bloco a bloco. Fecha a última divergência do R6 |
