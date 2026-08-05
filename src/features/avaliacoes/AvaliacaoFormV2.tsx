@@ -10,6 +10,7 @@ import { criarAvaliacaoV2 } from "./acoes";
 import { AvisoFormularioProvisorio } from "./AvisoFormularioProvisorio";
 import { AmplitudeFieldset } from "./AmplitudeFieldset";
 import { SaltosFieldset } from "./SaltosFieldset";
+import { VelocidadeFieldset } from "./VelocidadeFieldset";
 import { formDataParaValoresV2 } from "./mappers";
 import type { ReferenciaAnteriorV2 } from "./mappers";
 import { gravarRascunho, lerRascunho, limparRascunho, type Rascunho } from "./rascunho";
@@ -41,6 +42,7 @@ export function AvaliacaoFormV2({ alunoId, alunoNome, alunoAtivo, referencia, da
       <fieldset className="rounded-lg border p-4"><legend className="px-2 font-semibold">Data e observações</legend><div className="grid gap-4"><CampoFormulario id="dataAvaliacao" label="Data da avaliação" type="date" obrigatorio defaultValue={valores.dataAvaliacao} erro={erros.dataAvaliacao} /><div><label htmlFor="observacoes" className="text-sm font-medium">Observações</label><textarea id="observacoes" name="observacoes" defaultValue={valores.observacoes} className="mt-1 min-h-24 w-full rounded-lg border px-3 py-2" /></div></div></fieldset>
       <AmplitudeFieldset referencia={referencia} erros={erros} valores={valores.campos} />
       <SaltosFieldset referencia={referencia} erros={erros} valores={valores.campos} />
+      <VelocidadeFieldset erros={erros} valores={valores.campos} />
       <div className="flex flex-col-reverse gap-2 sm:flex-row"><Button type="submit" disabled={pendente} className="h-11 sm:h-9">{pendente ? "Validando…" : "Validar preenchimento"}</Button><Link href={`/alunos/${alunoId}`} className={cn(buttonVariants({ variant: "outline" }), "h-11 sm:h-9")}>Cancelar</Link></div>
     </form></main>;
 }
