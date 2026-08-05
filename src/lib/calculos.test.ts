@@ -108,10 +108,12 @@ describe("ajustarCurva degenera quando faltam pontos", () => {
 });
 
 describe("velocidadeMedia — conversao provisoria de tempo em velocidade", () => {
-  test("usa o deslocamento estimado de 0,5 m por repeticao", () => {
-    // 2 reps x 0,5 m / 1,43 s
-    expect(velocidadeMedia({ codigo: "AGACHAMENTO", repeticoes: 2, tempoSegundos: 1.43 })).toBe(
-      0.699,
+  test("usa o deslocamento estimado de 0,5 m por execucao", () => {
+    // 0,5 m / 1,43 s. O modelo v2 removeu `repeticoes` do dominio, entao a
+    // formula perdeu esse termo e o numerador virou 100% estimativa nossa
+    // (evaluation-model-v2-proposal.md secao 12).
+    expect(velocidadeMedia({ codigo: "AGACHAMENTO", tempoSegundos: 1.43 })).toBe(
+      0.35,
     );
   });
 

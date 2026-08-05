@@ -31,23 +31,28 @@ model Avaliacao {
   criadoEm      DateTime @default(now())
   atualizadoEm  DateTime @updatedAt
 
-  aluno   Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
-  medidas Medida[]
-  testes  Teste[]
+  aluno       Aluno              @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  medidas     Medida[]
+  velocidades MedidaVelocidade[]
 
   @@index([alunoId, dataAvaliacao])
 }
 
-/// Medida antropometrica/funcional da avaliacao (CMJ, mobilidade de tornozelo...).
+/// Medida dos blocos Amplitude e Salto (CMJ, mobilidade de tornozelo...).
 ///
 /// Uma tabela filha em vez de colunas fixas: na planilha isso eram ~16 colunas
 /// lado a lado, e o professor acrescenta teste novo de tempos em tempos.
 /// Medida bilateral usa `direito`/`esquerdo`; medida simples usa `valor`.
+///
+/// `unidade` e nullable desde o modelo v2: os quatro saltos novos podem ser
+/// altura, razao adimensional ou percentual, e o cliente ainda nao respondeu
+/// (bloqueio B6). `null` = unidade desconhecida. Gravar "cm" provisorio seria
+/// mentir no banco — ver o comentario no topo de src/lib/medidas.ts.
 model Medida {
   id          String  @id @default(uuid())
   avaliacaoId String
   codigo      String
-  unidade     String
+  unidade     String?
   direito     Float?
   esquerdo    Float?
   valor       Float?
@@ -57,35 +62,30 @@ model Medida {
   @@unique([avaliacaoId, codigo])
 }
 
-/// Exercicio testado dentro da avaliacao (SALTO_AGACHADO, AGACHAMENTO...).
-model Teste {
-  id          String @id @default(uuid())
-  avaliacaoId String
-  codigo      String
-  nome        String
-  ordem       Int
+/// Bloco Velocidade: um par carga/tempo por exercicio (SQUAT_JUMP, AGACHAMENTO).
+///
+/// Substitui `Teste` + `Tentativa` do modelo v1 — opcao A de
+/// docs/evaluation-model-v2-proposal.md §11.2. Duas tabelas para guardar um par
+/// de numeros era sobre-modelagem depois que o dominio perdeu a nocao de serie:
+/// o professor executa as tentativas fora do sistema e registra so o melhor
+/// resultado, entao nao ha `ordem` nem `repeticoes` para modelar.
+///
+/// Uma linha por exercicio, sempre — inclusive com os dois valores `null`,
+/// espelhando a regra de `Medida` de que a chave existe mesmo sem dado.
+///
+/// As unidades (kg, s) vivem no nome da coluna em vez de numa coluna propria:
+/// sao fixas pelo dominio e o payload v2 nao as transporta.
+///
+/// A velocidade nao e armazenada — e derivada em src/lib/calculos.ts.
+model MedidaVelocidade {
+  id            String @id @default(uuid())
+  avaliacaoId   String
+  codigo        String
+  cargaKg       Float?
+  tempoSegundos Float?
 
-  avaliacao  Avaliacao   @relation(fields: [avaliacaoId], references: [id], onDelete: Cascade)
-  tentativas Tentativa[]
+  avaliacao Avaliacao @relation(fields: [avaliacaoId], references: [id], onDelete: Cascade)
 
   @@unique([avaliacaoId, codigo])
   @@index([avaliacaoId])
-}
-
-/// Uma serie do teste: N repeticoes com uma carga, cronometradas.
-/// A velocidade nao e armazenada — e derivada em src/lib/calculos.ts.
-model Tentativa {
-  id            String @id @default(uuid())
-  testeId       String
-  ordem         Int
-  repeticoes    Int
-  cargaValor    Float
-  cargaUnidade  String
-  tempoValor    Float
-  tempoUnidade  String
-
-  teste Teste @relation(fields: [testeId], references: [id], onDelete: Cascade)
-
-  @@unique([testeId, ordem])
-  @@index([testeId])
 }

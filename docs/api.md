@@ -6,6 +6,37 @@ professor. Fórmulas e textos do relatório são provisórios — ver
 
 Base local: `http://localhost:3000/api`
 
+## 🆕 Avaliação v2 — o contrato mudou
+
+As rotas de avaliação passaram para o **modelo v2**
+(`docs/evaluation-model-v2-proposal.md`). É **breaking change deliberado, sem
+versionamento paralelo**: não existe cliente em produção, e manter os dois
+formatos custaria mais do que trocar.
+
+| Saiu | Entrou |
+| --- | --- |
+| `medidas` (5 chaves, com `unidade`) | `amplitude` (4) + `saltos` (5), sem unidade |
+| `testes[]` com `tentativas[]` | `velocidade`, 2 chaves fixas |
+| `ordem`, `repeticoes` | — (o professor registra o melhor resultado, não a série) |
+| `unidade` no payload | unidade só no catálogo (`GET /medidas`) |
+| `409` por código duplicado | — (duplicidade virou impossível) |
+
+O schema Zod oficial é `criarAvaliacaoSchema` em `src/lib/schemas.ts`. Ele é a
+versão revisada de `schemaAvaliacaoV2Provisorio`, que o front escreveu em
+`src/features/avaliacoes/contrato-v2.ts`: **a forma foi aceita sem alteração** —
+mesmos nomes de chave, mesma nullabilidade, mesmos paths de erro. Com isto
+publicado, `contrato-v2.ts` cumpriu seu prazo de vida e deve ser apagado
+(`e5-v2-implementation-spec.md` §13.5).
+
+Duas coisas continuam **pendentes de decisão**, e estão marcadas onde aparecem:
+
+- **unidade dos 4 saltos novos** — vem `null` no catálogo, e não bloqueia o
+  contrato, porque o v2 não transporta unidade;
+- **futuro da curva força-velocidade**, que caiu de 8 para no máximo 2 pontos
+  — ver [a seção sobre isso](#️-a-curva-encolheu-de-8-pontos-para-2--decisão-de-produto-pendente).
+
+## Tipos
+
 Os tipos podem ser importados direto — **entrada e saída**:
 
 ```ts
@@ -50,33 +81,59 @@ relatório, então elas precisam bater com a planilha dele.
   "sufixoLado": { "direito": "DIR", "esquerdo": "ESQ" },
   "medidas": [
     {
-      "chave": "mobilidadeTornozelo",       // chave no objeto `medidas` do DTO
+      "chave": "tornozelo",                 // chave dentro de `amplitude` no DTO
       "codigo": "MOBILIDADE_TORNOZELO",
       "sigla": "TOR",
       "nome": "Mobilidade de tornozelo",
       "unidade": "cm",
       "bilateral": true,
+      "bloco": "amplitude",
       "siglas": { "direito": "TOR DIR", "esquerdo": "TOR ESQ" }
     },
     {
-      "chave": "cmj",
+      "chave": "cmj",                       // chave dentro de `saltos` no DTO
       "codigo": "CMJ",
       "sigla": "CMJ",
       "nome": "Counter Movement Jump",
       "unidade": "cm",
       "bilateral": false,
+      "bloco": "salto",
       "siglas": { "valor": "CMJ" }          // medida simples: sem lado
+    },
+    {
+      "chave": "salto2",
+      "codigo": "SALTO_2",
+      "sigla": "SALTO 2",
+      "nome": "Resultado de salto 2",
+      "unidade": null,                      // ⚠️ desconhecida — ver abaixo
+      "bilateral": false,
+      "bloco": "salto",
+      "siglas": { "valor": "SALTO 2" }
+    }
+  ],
+  "velocidade": [                           // não sai de `medidas`: duas grandezas
+    {
+      "chave": "squatJump",                 // chave dentro de `velocidade` no DTO
+      "codigo": "SQUAT_JUMP",
+      "nome": "Squat Jump",
+      "unidades": { "carga": "kg", "tempo": "s" }
     }
   ]
 }
 ```
 
-Dá pra montar o formulário de avaliação inteiro a partir daqui: `bilateral`
-decide se são dois campos ou um, e `chave` diz onde o valor entra no DTO.
+Dá pra montar o formulário inteiro a partir daqui: `bloco` decide em qual dos
+três fieldsets o campo entra, `bilateral` decide se são dois campos ou um, e
+`chave` diz onde o valor entra no DTO.
+
+⚠️ **`unidade` pode vir `null`**, nos quatro saltos provisórios. Significa
+"unidade ainda não confirmada pelo cliente", não "sem unidade". Renderize o
+número **sem sufixo** nesse caso — nunca assuma `cm`. Nome, sigla e código
+desses quatro também são provisórios e vão mudar quando o cliente responder.
 
 > Fonte única: `src/lib/medidas.ts`. Acrescentar medida é uma entrada lá + o
-> campo no `medidasSchema`; se esquecer a segunda parte, o `npm run typecheck`
-> quebra de propósito.
+> campo no bloco correspondente de `src/lib/schemas.ts`; se esquecer a segunda
+> parte, o `npm run typecheck` quebra de propósito.
 
 ## Alunos
 
@@ -117,9 +174,9 @@ O que `GET /avaliacoes` e `GET /avaliacoes/:id` devolvem tem tipo pronto:
 
 ```ts
 import type {
-  AvaliacaoResponse,   // a avaliação inteira
-  TesteResponse,       // um exercício dela
-  TentativaResponse,   // uma série do exercício
+  AvaliacaoResponse,     // a avaliação inteira
+  VelocidadeResponse,    // o bloco de velocidade
+  ExercicioResponse,     // um exercício dele
 } from "@/lib/avaliacoes";
 ```
 
@@ -133,49 +190,78 @@ então o tipo vale igual antes e depois do JSON.
 Recebe exatamente o formato combinado. `GET /avaliacoes/:id` devolve o mesmo
 formato de volta, mais `id`, `alunoNome` e `criadoEm` — round-trip garantido.
 
-⚠️ **Não existe endpoint de edição de avaliação.** Só há `POST`, `GET` e
-`DELETE`. Enquanto for assim, corrigir uma avaliação significa excluir e
-recriar.
-
 ```jsonc
 {
   "alunoId": "8d1f5b89-90cb-4b61-a4c8-1e6ef7f71d67",  // uuid, precisa existir
   "dataAvaliacao": "2026-07-30",                       // AAAA-MM-DD
-  "medidas": {
-    "mobilidadeTornozelo":    { "unidade": "cm", "direito": 11.5, "esquerdo": 12.1 },
-    "mobilidadeQuadril":      { "unidade": "cm", "direito": 18.4, "esquerdo": 17.8 },
-    "amplitudeIsquiotibiais": { "unidade": "cm", "direito": 21,   "esquerdo": 20.7 },
-    "slb":                    { "unidade": "cm", "direito": 32.5, "esquerdo": 31.9 },
-    "cmj":                    { "unidade": "cm", "valor": 42.8 }
+  "amplitude": {
+    "tornozelo":     { "direito": 11.5, "esquerdo": 12.1 },
+    "quadril":       { "direito": 18.4, "esquerdo": 17.8 },
+    "isquiotibiais": { "direito": 21,   "esquerdo": 20.7 },
+    "slb":           { "direito": 32.5, "esquerdo": 31.9 }
   },
-  "testes": [
-    {
-      "codigo": "SALTO_AGACHADO",
-      "nome": "SJ",
-      "tentativas": [
-        { "ordem": 1, "repeticoes": 2, "carga": { "valor": 20, "unidade": "kg" },
-          "tempo": { "valor": 1.43, "unidade": "s" } }
-      ]
-    }
-  ],
-  "observacoes": "Boa evolução na mobilidade e nos testes."  // opcional
+  "saltos": {
+    "cmj": 42.8, "salto2": 38.1, "salto3": 35, "salto4": 30.2, "salto5": 28.9
+  },
+  "velocidade": {
+    "squatJump":   { "cargaKg": 20, "tempoSegundos": 1.43 },
+    "agachamento": { "cargaKg": 60, "tempoSegundos": 1.91 }
+  },
+  "observacoes": "Boa evolução na mobilidade."  // opcional
 }
 ```
 
+**Nenhuma unidade trafega no payload.** Unidade é propriedade do catálogo
+(`GET /medidas`), não do dado: o professor não escolhe em que unidade mede o
+tornozelo. É o que permite os quatro saltos novos existirem antes de o cliente
+dizer qual é a unidade deles.
+
 Regras de validação relevantes:
 
-- **Valores de medida aceitam `null`** (`direito`, `esquerdo`, `valor`), mas as
-  cinco chaves de `medidas` são obrigatórias. Avaliação parcial é a norma no
-  processo do professor, então o front pode mandar `null` à vontade.
-- `unidade` é literal fechado: `"cm"` em medidas, `"kg"` em carga, `"s"` em tempo.
-- `testes` pode vir vazio (`[]`), mas um teste presente precisa de ao menos uma
-  tentativa.
-- `carga.valor` e `tempo.valor` precisam ser positivos; `repeticoes` inteiro
-  entre **1 e 100**.
-- `codigo` do teste é único dentro da avaliação, e `ordem` é única dentro do
-  teste. Atenção: isso é **constraint de banco**, não validação de schema —
-  a violação volta como **409 sem indicar o campo**, ao contrário do 422, que
-  traz `issues`. Vale prevenir no cliente.
+- **Todos os valores aceitam `null`, e todas as chaves são obrigatórias.**
+  Avaliação parcial é a norma; chave ausente não é. `null` significa "não
+  medido"; `0` significa "medido e deu zero". Os dois nunca se misturam.
+- Medidas aceitam `0` e rejeitam negativo.
+- `cargaKg` aceita **`0`** — Squat Jump sem carga externa (peso corporal) é
+  medição legítima, e o ponto `(0, v)` é o intercepto V0 medido. Mudou em
+  relação ao v1, que rejeitava.
+- `tempoSegundos` precisa ser **estritamente positivo**: zero seria divisão por
+  zero no cálculo de velocidade.
+- **Carga e tempo são mutuamente dependentes**: por exercício, ou os dois
+  preenchidos, ou os dois `null`. Meio par é recusado com `422`.
+- `409` **não é mais alcançável** neste fluxo: os códigos vêm do catálogo, não
+  do cliente, então duplicidade virou sintaticamente impossível.
+
+#### `issues[].field` — lista literal
+
+O front usa o `name` de cada input idêntico ao `field` do issue, sem tabela de
+tradução. A lista completa, fixada por teste em `src/lib/schemas.test.ts`:
+
+```
+alunoId
+dataAvaliacao
+observacoes
+amplitude.tornozelo.direito        amplitude.tornozelo.esquerdo
+amplitude.quadril.direito          amplitude.quadril.esquerdo
+amplitude.isquiotibiais.direito    amplitude.isquiotibiais.esquerdo
+amplitude.slb.direito              amplitude.slb.esquerdo
+saltos.cmj    saltos.salto2    saltos.salto3    saltos.salto4    saltos.salto5
+velocidade.squatJump.cargaKg       velocidade.squatJump.tempoSegundos
+velocidade.agachamento.cargaKg     velocidade.agachamento.tempoSegundos
+```
+
+19 campos, nenhum índice numérico. Os dois paths da regra carga↔tempo saem do
+`superRefine` e foram **verificados contra o servidor real**, não deduzidos:
+
+```json
+{
+  "error": "Dados invalidos",
+  "issues": [
+    { "field": "velocidade.squatJump.tempoSegundos", "message": "Informe o tempo junto com a carga." },
+    { "field": "velocidade.agachamento.cargaKg", "message": "Informe a carga junto com o tempo." }
+  ]
+}
+```
 
 ### `PATCH /avaliacoes/:id`
 
@@ -183,16 +269,20 @@ Edita uma avaliação existente. Devolve `200` com a avaliação completa, no me
 formato do `GET`.
 
 **Cada bloco enviado substitui o bloco inteiro; bloco omitido fica como estava.**
-Não existe atualizar uma medida sozinha — o mesmo motivo que faz `medidas` ter
-todas as chaves sempre presentes: merge parcial reabriria a dúvida entre "não
-mandei" e "apaguei".
+Não existe atualizar uma medida sozinha — o mesmo motivo que faz todas as chaves
+estarem sempre presentes: merge parcial reabriria a dúvida entre "não mandei" e
+"apaguei".
 
 | Campo | Omitido | Enviado |
 | --- | --- | --- |
 | `dataAvaliacao` | mantém | troca |
-| `medidas` | mantém as 5 | substitui as 5 |
-| `testes` | mantém a lista | substitui a lista (`[]` apaga todos) |
+| `amplitude` | mantém as 4 | substitui as 4 |
+| `saltos` | mantém os 5 | substitui os 5 |
+| `velocidade` | mantém os 2 | substitui os 2 |
 | `observacoes` | mantém | texto troca · **`null` limpa** |
+
+Os três blocos são independentes: mandar `saltos` sozinho **não** apaga
+`amplitude`, mesmo os dois morando na mesma tabela.
 
 `alunoId` não é aceito: avaliação não muda de aluno. Se precisar, `DELETE` e
 `POST` de novo.
@@ -200,7 +290,7 @@ mandei" e "apaguei".
 Corpo vazio (`{}`) é válido e não muda nada — devolve o estado atual.
 
 ```jsonc
-// só corrigir a observação, sem tocar em medidas nem testes
+// só corrigir a observação, sem tocar em nenhum bloco
 { "observacoes": "Refez o CMJ, valor conferido." }
 
 // limpar a observação
@@ -208,8 +298,8 @@ Corpo vazio (`{}`) é válido e não muda nada — devolve o estado atual.
 ```
 
 Erros: `404` id inexistente · `422` payload inválido, com `issues[].field` no
-mesmo formato do `POST` (`testes.0.tentativas.0.carga.valor`) · `409` código de
-teste repetido, sem indicar campo, igual ao `POST`.
+mesmo formato do `POST`. Um bloco enviado continua exigindo **todas** as suas
+chaves, e a regra carga↔tempo vale igual.
 
 A gravação é transacional: se a recriação falhar, o conteúdo antigo continua
 lá — um payload recusado não deixa a avaliação vazia.
@@ -231,8 +321,7 @@ para nenhum relatório já existente passar a mostrar números diferentes em
 silêncio.
 
 O recorte afeta `historicoCmj`, `resumoCmj` e `periodo`. **Não afeta `curva`
-nem `score`**, que saem dos testes da própria avaliação relatada, não do
-histórico.
+nem `score`**, que saem da própria avaliação relatada, não do histórico.
 
 `periodo.semanas` diz qual janela foi aplicada, ou `null` quando é o histórico
 inteiro — use isso para rotular a tela, em vez de assumir o que os números
@@ -251,13 +340,15 @@ Resposta abreviada:
   "periodo": { "de": "2025-07-10", "ate": "2026-07-30",
                "totalAvaliacoes": 9, "semanas": null },
 
-  "medidas": { /* mesmo formato do DTO */ },
+  // os mesmos blocos do DTO
+  "amplitude": { /* ... */ },
+  "saltos":    { /* ... */ },
 
   // mesmo conteúdo, achatado e com a sigla do professor pronta pra imprimir
   "medidasDetalhadas": [
     {
       "chave": "slb", "codigo": "SLB", "sigla": "SLB", "nome": "SLB",
-      "unidade": "cm", "bilateral": true,
+      "unidade": "cm", "bilateral": true, "bloco": "amplitude",
       "valores": [
         { "sigla": "SLB DIR", "rotulo": "SLB (direito)",  "lado": "direito",  "valor": 32.5 },
         { "sigla": "SLB ESQ", "rotulo": "SLB (esquerdo)", "lado": "esquerdo", "valor": 31.9 }
@@ -267,20 +358,26 @@ Resposta abreviada:
 
   "curva": {
     "pontos": [
-      { "testeCodigo": "SALTO_AGACHADO", "testeNome": "SJ",
-        "cargaKg": 20, "velocidadeMs": 0.699 }
-      // ...ordenados por carga crescente
+      { "testeCodigo": "SQUAT_JUMP", "testeNome": "Squat Jump",
+        "cargaKg": 20, "velocidadeMs": 0.379 }
+      // ...ordenados por carga crescente. NO MÁXIMO 2 — ver abaixo
     ],
-    "cargaMaximaKg": 50,       // pode vir null — ver notas abaixo
+    "cargaMaximaKg": 60,       // pode vir null — ver notas abaixo
     "ajuste": {
-      "inclinacao": -0.01187,   // m/s por kg
-      "v0": 0.944,              // velocidade teórica máxima
-      "f0": 79.5,               // carga teórica máxima
-      "r2": 0.919,              // qualidade do ajuste, 0–1
-      "cargaOtimaKg": 39.8,
-      "velocidadeOtimaMs": 0.472
+      "inclinacao": -0.00243,   // m/s por kg
+      "v0": 0.428,              // velocidade teórica máxima
+      "f0": 176.3,              // carga teórica máxima
+      "r2": 1,                  // ⚠️ com 2 pontos é sempre 1 — ver abaixo
+      "pontosUsados": 2,
+      "cargaOtimaKg": 88.1,
+      "velocidadeOtimaMs": 0.214
     },
-    "perfil": "Equilibrado"
+    "perfil": "Orientado a força",
+    "suficiencia": {
+      "pontos": 2,
+      "temAjuste": true,
+      "r2Informativo": false    // não exiba r2 como qualidade quando for false
+    }
   },
 
   "historicoCmj": [ { "data": "2025-07-10", "valor": 40 } ],
@@ -314,13 +411,46 @@ divergirem em silêncio: mudou o formato, o `typecheck` acusa em quem consome.
 propósito — quem vai ao banco é o route handler. Dá pra fazer `import type`
 do front sem arrastar módulo server-only.
 
+### ⚠️ A curva encolheu de 8 pontos para 2 — decisão de produto pendente
+
+> Atenção à sigla: este é o bloqueio **B2 de
+> `evaluation-model-v2-proposal.md` §20**, que não é o mesmo B2 da tabela de
+> pendências no fim deste arquivo.
+
+No modelo v1 a curva somava uma tentativa por ponto: o seed dava 5 e a planilha
+real do professor tem 8. **No v2 sobra no máximo 1 ponto por exercício, ou
+seja 2 no total.** Consequências, todas verificáveis na resposta:
+
+| Situação | O que acontece |
+| --- | --- |
+| 2 exercícios medidos | há reta, mas `r2` é **sempre `1`** |
+| 1 exercício medido | `ajuste: null`, `perfil: "Dados insuficientes"` |
+| cargas iguais nos 2 | `ajuste: null` (regressão sem solução) |
+
+O `r2 = 1` **não é ajuste perfeito** — é ausência de graus de liberdade: uma
+reta passa exatamente por dois pontos, por construção. Exibir isso como "índice
+de qualidade da curva" apresentaria uma constante como se fosse informação.
+
+Por isso a resposta traz `curva.suficiencia`. **Use `r2Informativo` para decidir
+se exibe `r2`**, em vez de deduzir de `pontos.length` em cada componente.
+
+Isto é uma adaptação mecânica para a rota continuar funcionando e não mentir —
+**não é a resposta ao bloqueio**. As seções 2, 3, 4, 7 e 10 do relatório foram
+desenhadas sobre 8 pontos e não se sustentam com 2. Se a curva continua no
+produto, vira comparação de dois pontos, ou sai do MVP, é decisão de produto,
+ainda pendente (`evaluation-model-v2-proposal.md` §9.4, §15.8).
+
 Notas pro front:
 
 - **`ajuste` pode vir `null`** — acontece com menos de 2 pontos de carga, ou se
-  todas as cargas forem iguais. Nesse caso `perfil` vem `"Dados insuficientes"`.
+  as duas cargas forem iguais. Nesse caso `perfil` vem `"Dados insuficientes"`.
 - **`resumoCmj` pode vir `null`** se o aluno nunca teve CMJ medido.
-- **`curva.cargaMaximaKg` pode vir `null`** quando a avaliação não tem nenhuma
-  tentativa com carga.
+- **`curva.cargaMaximaKg` pode vir `null`** quando nenhum exercício de
+  velocidade foi medido.
+- **`medidasDetalhadas[].unidade` pode vir `null`** — os quatro saltos
+  provisórios. Imprima o valor sem sufixo, nunca assuma `cm`.
+- Exercício com carga ou tempo faltando **fica fora da curva** em vez de virar
+  zero, mesma regra do CMJ ausente no histórico.
 - `historicoCmj` **pula** avaliações sem CMJ em vez de mandar zero (era um bug
   conhecido da planilha, ver `planilha-atual.md`).
 - **`periodo.totalAvaliacoes` conta só as avaliações com CMJ**, não o total de
@@ -345,11 +475,20 @@ Nada disso é opinião do professor ainda. Está tudo isolado em dois arquivos:
 | `src/lib/calculos.ts` | velocidade, curva, perfil, score | as fórmulas reais estão na planilha do professor e ainda não chegaram |
 | `src/lib/textos.ts` | melhorias, pontos de atenção, recomendações, conclusão | lorem ipsum; ainda não se sabe se ele escreve ou se o sistema gera |
 
-O ponto mais frágil: **o contrato manda `tempo` (s) e `repeticoes`, não
-velocidade.** Pra virar m/s falta o deslocamento por repetição, que hoje é uma
-constante chutada (0,5 m) em `DESLOCAMENTO_POR_CODIGO`. Os números saem na ordem
-certa (mais carga → mais lento), mas a escala não bate com a VMP que o professor
-usa hoje. Está na lista de dúvidas como a nº 11.
+O ponto mais frágil: **o contrato manda `tempoSegundos`, não velocidade.** Pra
+virar m/s falta o deslocamento do movimento, que hoje é uma constante chutada
+(0,5 m) em `DESLOCAMENTO_POR_CODIGO`. Os números saem na ordem certa (mais carga
+→ mais lento), mas a escala não bate com a VMP que o professor usa hoje. Está na
+lista de dúvidas como a nº 11.
+
+⚠️ **Isso piorou no v2.** A fórmula era `repeticoes × deslocamento / tempo`; sem
+`repeticoes`, virou `deslocamento / tempo`, e o numerador passou a ser
+inteiramente estimativa nossa. Some a isso o fato de o `docs/vbt.md` registrar
+que o professor **já mede VMP com encoder**: se ele tem a velocidade na mão,
+receber `velocidadeMs` em vez de `tempoSegundos` eliminaria de uma vez o chute
+do deslocamento, a dúvida 11 e toda a derivação. Vale perguntar antes de o
+front seguir — trocar o campo depois muda o DTO
+(`evaluation-model-v2-proposal.md` §12, §15.6).
 
 ## Pendências levantadas pelo front
 
@@ -363,7 +502,8 @@ Resposta do backend às perguntas de `frontend-plan.md` §12. O que está
 | D4 | `perfil`/`nivel` viriam acentuados? | **resolvido** — sim, prontos pra exibir |
 | D6 | o front pode importar `MEDIDAS` de `@/lib/medidas`? | **sim** — o módulo não tem nenhum import, é catálogo estático e fonte única da verdade. `GET /medidas` existe pra quem preferir buscar |
 | D7 | exportar `RelatorioResponse` | **resolvido** — derivado, em `@/lib/relatorio` |
-| R3 | contrato de saída de avaliação não tipado | **resolvido** — `AvaliacaoResponse`, `TesteResponse` e `TentativaResponse` em `@/lib/avaliacoes`. Dá pra trocar o `ReturnType<typeof serializarAvaliacao>` de `features/alunos/tipos.ts:35` pelo import direto |
+| R3 | contrato de saída de avaliação não tipado | **resolvido** — `AvaliacaoResponse`, `VelocidadeResponse` e `ExercicioResponse` em `@/lib/avaliacoes`. Dá pra trocar o `ReturnType<typeof serializarAvaliacao>` de `features/alunos/tipos.ts:35` pelo import direto |
+| B6 | unidade dos 4 saltos novos | **destravado, não resolvido** — o contrato não transporta unidade, então o front não depende disso. No catálogo vem `null` até o cliente responder; código, sigla e nome dos quatro também são provisórios |
 | D1 | recortar até a data da avaliação relatada | **parcial** — com `?semanas=` a janela termina nela; sem o parâmetro, ainda cobre tudo |
 | D8 | service layer em `src/lib/` | **começou** — `relatorio.ts` é o primeiro caso; sem plano de estender ainda |
 | D2 | `totalAvaliacoes` contar só CMJ é intencional? | **aberto** — comportamento documentado, mas a escolha é de produto |

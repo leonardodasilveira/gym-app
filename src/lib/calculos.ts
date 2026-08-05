@@ -17,7 +17,7 @@
  * Perguntar ao professor: ele mede amplitude? E por atleta ou valor fixo?
  */
 const DESLOCAMENTO_POR_CODIGO: Record<string, number> = {
-  SALTO_AGACHADO: 0.5,
+  SQUAT_JUMP: 0.5,
   AGACHAMENTO: 0.5,
 };
 
@@ -28,20 +28,31 @@ export function deslocamentoDoExercicio(codigo: string): number {
 }
 
 /**
- * Velocidade media da tentativa, em m/s.
+ * Velocidade media da execucao, em m/s.
  *
- * ⚠️ APROXIMACAO: distancia total percorrida dividida pelo tempo total.
- * Isso inclui fase excentrica e pausas, entao o numero fica bem abaixo da VMP
+ * ⚠️ APROXIMACAO: deslocamento estimado dividido pelo tempo cronometrado.
+ * Inclui fase excentrica e pausas, entao o numero fica bem abaixo da VMP
  * (velocidade media propulsiva) que o professor usa hoje na planilha.
  * Serve pra ordenar e comparar; nao serve como valor clinico.
+ *
+ * ⚠️ O modelo v2 removeu `repeticoes` do dominio: o professor registra o melhor
+ * resultado, nao uma serie. A formula perdeu esse termo e virou
+ * `deslocamento / tempo`, assumindo que `tempoSegundos` e o tempo de **uma
+ * execucao** — hipotese ainda nao confirmada pelo cliente
+ * (evaluation-model-v2-proposal.md §3.3, §12).
+ *
+ * Com isso o numerador passou a ser 100% estimativa nossa. Se o professor
+ * fornecer a VMP do encoder, este modulo inteiro deixa de ser necessario para
+ * a curva — ver a duvida 6 de §15 da proposta.
  */
 export function velocidadeMedia(input: {
   codigo: string;
-  repeticoes: number;
   tempoSegundos: number;
 }): number {
-  const distancia = input.repeticoes * deslocamentoDoExercicio(input.codigo);
-  return arredondar(distancia / input.tempoSegundos, 3);
+  return arredondar(
+    deslocamentoDoExercicio(input.codigo) / input.tempoSegundos,
+    3,
+  );
 }
 
 export type PontoCurva = {
@@ -58,8 +69,18 @@ export type AjusteCurva = {
   v0: number;
   /** Carga teorica maxima: onde a reta cruza velocidade = 0. */
   f0: number;
-  /** Qualidade do ajuste linear, 0 a 1. */
+  /**
+   * Qualidade do ajuste linear, 0 a 1.
+   *
+   * ⚠️ **Sem significado com exatamente 2 pontos**, que e o maximo que o modelo
+   * v2 produz (um por exercicio de velocidade). Uma reta passa exatamente por
+   * dois pontos, entao `ssRes = 0` e `r2` da `1` sempre — nao e "ajuste
+   * perfeito", e ausencia de graus de liberdade. Use `pontosUsados` pra decidir
+   * se vale exibir. Ver `evaluation-model-v2-proposal.md` §9.4 (bloqueio B2).
+   */
   r2: number;
+  /** Quantos pontos entraram no ajuste. Necessario pra interpretar `r2`. */
+  pontosUsados: number;
   /** Carga de potencia otima. ⚠️ Aproximada por F0/2. */
   cargaOtimaKg: number;
   /** Velocidade na carga otima. ⚠️ Aproximada por V0/2. */
@@ -116,10 +137,20 @@ export function ajustarCurva(pontos: PontoCurva[]): AjusteCurva | null {
     v0: arredondar(v0, 3),
     f0: arredondar(f0, 1),
     r2: arredondar(r2, 3),
+    pontosUsados: n,
     cargaOtimaKg: arredondar(f0 / 2, 1),
     velocidadeOtimaMs: arredondar(v0 / 2, 3),
   };
 }
+
+/**
+ * `r2` so carrega informacao com 3 pontos ou mais — com 2 a reta e exata por
+ * construcao. Existe como funcao, e nao como regra espalhada na UI, pra que a
+ * decisao de exibir ou nao o indice de qualidade fique num lugar so quando o
+ * cliente responder o bloqueio B2.
+ */
+export const r2EhInformativo = (ajuste: AjusteCurva | null): boolean =>
+  ajuste !== null && ajuste.pontosUsados >= 3;
 
 /** Rotulo do perfil a partir da inclinacao. ⚠️ Faixas inventadas. */
 export function classificarPerfil(ajuste: AjusteCurva | null): string {

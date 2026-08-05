@@ -1,9 +1,12 @@
 import {
+  amplitudeParaLinhas,
   avaliacaoCompleta,
-  medidasParaLinhas,
+  CODIGOS_AMPLITUDE,
+  CODIGOS_SALTO,
   paraData,
+  saltosParaLinhas,
   serializarAvaliacao,
-  testesParaCriacao,
+  velocidadeParaLinhas,
 } from "@/lib/avaliacoes";
 import { handler, json, naoEncontrado, parseBody } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
@@ -31,13 +34,19 @@ export const GET = handler(async (_request, { params }: Context) => {
  * Edita a avaliacao. Cada bloco enviado substitui o bloco inteiro; bloco omitido
  * fica como estava — ver `atualizarAvaliacaoSchema`.
  *
- * Medidas e testes sao regravados do zero em vez de reconciliados linha a linha.
- * Com o volume envolvido (9 medidas e um punhado de testes) a diferenca de custo
- * e irrelevante, e reconciliacao exigiria casar registro do banco com item do
- * payload por `codigo` — que e justamente o par que o cliente pode ter mudado.
+ * Os blocos sao regravados do zero em vez de reconciliados linha a linha. Com o
+ * volume envolvido (9 medidas e 2 exercicios) a diferenca de custo e
+ * irrelevante, e reconciliar exigiria casar registro do banco com item do
+ * payload por `codigo`.
  *
- * Tudo numa transacao: sem ela, um payload de testes invalido apagaria os testes
- * antigos e falharia na recriacao, deixando a avaliacao sem nada.
+ * `amplitude` e `saltos` moram na mesma tabela, entao cada delete e restrito aos
+ * codigos do seu bloco (`CODIGOS_AMPLITUDE`/`CODIGOS_SALTO`). Um `deleteMany`
+ * por `avaliacaoId` apagaria o bloco que o cliente nao mandou — que e
+ * exatamente a diferenca entre "nao mandei" e "apaguei" que o contrato existe
+ * pra manter separada.
+ *
+ * Tudo numa transacao: sem ela, um payload invalido apagaria o bloco antigo e
+ * falharia na recriacao, deixando a avaliacao sem nada.
  */
 export const PATCH = handler(async (request, { params }: Context) => {
   const { id } = await params;
@@ -51,23 +60,38 @@ export const PATCH = handler(async (request, { params }: Context) => {
   if (!existe) throw naoEncontrado("Avaliacao nao encontrada");
 
   const avaliacao = await prisma.$transaction(async (tx) => {
-    if (dados.medidas) {
-      await tx.medida.deleteMany({ where: { avaliacaoId: id } });
+    if (dados.amplitude) {
+      await tx.medida.deleteMany({
+        where: { avaliacaoId: id, codigo: { in: CODIGOS_AMPLITUDE } },
+      });
       await tx.medida.createMany({
-        data: medidasParaLinhas(dados.medidas).map((linha) => ({
+        data: amplitudeParaLinhas(dados.amplitude).map((linha) => ({
           ...linha,
           avaliacaoId: id,
         })),
       });
     }
 
-    if (dados.testes) {
-      // As tentativas caem junto por cascata (schema.prisma, Tentativa.teste).
-      await tx.teste.deleteMany({ where: { avaliacaoId: id } });
+    if (dados.saltos) {
+      await tx.medida.deleteMany({
+        where: { avaliacaoId: id, codigo: { in: CODIGOS_SALTO } },
+      });
+      await tx.medida.createMany({
+        data: saltosParaLinhas(dados.saltos).map((linha) => ({
+          ...linha,
+          avaliacaoId: id,
+        })),
+      });
+    }
 
-      for (const teste of testesParaCriacao(dados.testes)) {
-        await tx.teste.create({ data: { ...teste, avaliacaoId: id } });
-      }
+    if (dados.velocidade) {
+      await tx.medidaVelocidade.deleteMany({ where: { avaliacaoId: id } });
+      await tx.medidaVelocidade.createMany({
+        data: velocidadeParaLinhas(dados.velocidade).map((linha) => ({
+          ...linha,
+          avaliacaoId: id,
+        })),
+      });
     }
 
     return tx.avaliacao.update({

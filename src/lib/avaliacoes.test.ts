@@ -2,41 +2,59 @@ import { describe, expect, test } from "vitest";
 
 import {
   formatarData,
-  linhasParaMedidas,
+  linhasParaAmplitude,
   linhasParaMedidasDetalhadas,
+  linhasParaSaltos,
+  linhasParaVelocidade,
   medidasParaLinhas,
   paraData,
   serializarAvaliacao,
   siglaDaMedida,
-  testesParaCriacao,
+  velocidadeParaLinhas,
   type AvaliacaoResponse,
   type LinhaMedida,
 } from "@/lib/avaliacoes";
 import { MEDIDAS } from "@/lib/medidas";
-import type { MedidasDTO } from "@/lib/schemas";
+import type { AmplitudeDTO, SaltosDTO, VelocidadeDTO } from "@/lib/schemas";
 
 const bilateral = (direito: number | null, esquerdo: number | null) =>
-  ({ unidade: "cm", direito, esquerdo }) as const;
+  ({ direito, esquerdo }) as const;
 
-const medidas = (parcial: Partial<MedidasDTO> = {}): MedidasDTO => ({
-  mobilidadeTornozelo: bilateral(11.5, 12.1),
-  mobilidadeQuadril: bilateral(18.4, 17.8),
-  amplitudeIsquiotibiais: bilateral(21, 20.7),
+const amplitude = (parcial: Partial<AmplitudeDTO> = {}): AmplitudeDTO => ({
+  tornozelo: bilateral(11.5, 12.1),
+  quadril: bilateral(18.4, 17.8),
+  isquiotibiais: bilateral(21, 20.7),
   slb: bilateral(32.5, 31.9),
-  cmj: { unidade: "cm", valor: 42.8 },
   ...parcial,
 });
 
-describe("conversao entre o DTO e a tabela Medida", () => {
+const saltos = (parcial: Partial<SaltosDTO> = {}): SaltosDTO => ({
+  cmj: 42.8,
+  salto2: 38.1,
+  salto3: 35,
+  salto4: 30.2,
+  salto5: 28.9,
+  ...parcial,
+});
+
+const velocidade = (parcial: Partial<VelocidadeDTO> = {}): VelocidadeDTO => ({
+  squatJump: { cargaKg: 20, tempoSegundos: 1.43 },
+  agachamento: { cargaKg: 60, tempoSegundos: 1.91 },
+  ...parcial,
+});
+
+describe("conversao entre os blocos do DTO e a tabela Medida", () => {
   test("gera exatamente uma linha por medida do catalogo", () => {
-    const linhas = medidasParaLinhas(medidas());
+    const linhas = medidasParaLinhas(amplitude(), saltos());
 
     expect(linhas).toHaveLength(MEDIDAS.length);
-    expect(linhas.map((l) => l.codigo)).toEqual(MEDIDAS.map((m) => m.codigo));
+    expect(linhas.map((l) => l.codigo).sort()).toEqual(
+      MEDIDAS.map((m) => m.codigo).sort(),
+    );
   });
 
-  test("bilateral usa direito/esquerdo e simples usa valor", () => {
-    const linhas = medidasParaLinhas(medidas());
+  test("bilateral usa direito/esquerdo e salto usa valor", () => {
+    const linhas = medidasParaLinhas(amplitude(), saltos());
     const tornozelo = linhas.find((l) => l.codigo === "MOBILIDADE_TORNOZELO")!;
     const cmj = linhas.find((l) => l.codigo === "CMJ")!;
 
@@ -44,10 +62,29 @@ describe("conversao entre o DTO e a tabela Medida", () => {
     expect(cmj).toMatchObject({ direito: null, esquerdo: null, valor: 42.8 });
   });
 
-  test("ida e volta preserva os valores", () => {
-    const original = medidas();
+  test("ida e volta preserva os valores dos dois blocos", () => {
+    const linhas = medidasParaLinhas(amplitude(), saltos());
 
-    expect(linhasParaMedidas(medidasParaLinhas(original))).toEqual(original);
+    expect(linhasParaAmplitude(linhas)).toEqual(amplitude());
+    expect(linhasParaSaltos(linhas)).toEqual(saltos());
+  });
+
+  /**
+   * A unidade e propriedade do catalogo, nao do payload: o v2 nao transporta
+   * unidade nenhuma. Este teste fixa que a gravacao busca no lugar certo.
+   */
+  test("a unidade vem do catalogo, e e null nos saltos sem unidade confirmada", () => {
+    const linhas = medidasParaLinhas(amplitude(), saltos());
+    const porCodigo = new Map(linhas.map((l) => [l.codigo, l]));
+
+    expect(porCodigo.get("MOBILIDADE_TORNOZELO")!.unidade).toBe("cm");
+    expect(porCodigo.get("CMJ")!.unidade).toBe("cm");
+
+    // Bloqueio B6: ninguem confirmou se estes sao cm, % ou adimensionais.
+    // Gravar "cm" aqui seria mentir no banco.
+    for (const codigo of ["SALTO_2", "SALTO_3", "SALTO_4", "SALTO_5"]) {
+      expect(porCodigo.get(codigo)!.unidade).toBeNull();
+    }
   });
 });
 
@@ -59,28 +96,32 @@ describe("conversao entre o DTO e a tabela Medida", () => {
  */
 describe("null e zero sao coisas diferentes", () => {
   test("zero medido sobrevive a ida e volta como zero", () => {
-    const comZero = medidas({ cmj: { unidade: "cm", valor: 0 } });
-    const voltou = linhasParaMedidas(medidasParaLinhas(comZero));
+    const linhas = medidasParaLinhas(amplitude(), saltos({ cmj: 0 }));
+    const voltou = linhasParaSaltos(linhas);
 
-    expect(voltou.cmj.valor).toBe(0);
-    expect(voltou.cmj.valor).not.toBeNull();
+    expect(voltou.cmj).toBe(0);
+    expect(voltou.cmj).not.toBeNull();
   });
 
   test("nao medido continua null e nunca vira zero", () => {
-    const semNada = medidas({
-      cmj: { unidade: "cm", valor: null },
-      slb: bilateral(null, null),
-    });
-    const voltou = linhasParaMedidas(medidasParaLinhas(semNada));
+    const linhas = medidasParaLinhas(
+      amplitude({ slb: bilateral(null, null) }),
+      saltos({ cmj: null }),
+    );
 
-    expect(voltou.cmj.valor).toBeNull();
-    expect(voltou.slb.direito).toBeNull();
-    expect(voltou.slb.esquerdo).toBeNull();
+    expect(linhasParaSaltos(linhas).cmj).toBeNull();
+    expect(linhasParaAmplitude(linhas).slb).toEqual({
+      direito: null,
+      esquerdo: null,
+    });
   });
 
   test("um lado medido e o outro nao convivem na mesma medida", () => {
-    const soDireito = medidas({ slb: bilateral(32.5, null) });
-    const voltou = linhasParaMedidas(medidasParaLinhas(soDireito));
+    const linhas = medidasParaLinhas(
+      amplitude({ slb: bilateral(32.5, null) }),
+      saltos(),
+    );
+    const voltou = linhasParaAmplitude(linhas);
 
     expect(voltou.slb.direito).toBe(32.5);
     expect(voltou.slb.esquerdo).toBeNull();
@@ -91,72 +132,100 @@ describe("null e zero sao coisas diferentes", () => {
     const soCmj: LinhaMedida[] = [
       { codigo: "CMJ", unidade: "cm", direito: null, esquerdo: null, valor: 42.8 },
     ];
-    const voltou = linhasParaMedidas(soCmj);
 
-    expect(voltou.cmj.valor).toBe(42.8);
-    expect(voltou.mobilidadeTornozelo.direito).toBeNull();
-    expect(voltou.mobilidadeQuadril.esquerdo).toBeNull();
+    expect(linhasParaSaltos(soCmj).cmj).toBe(42.8);
+    expect(linhasParaSaltos(soCmj).salto2).toBeNull();
+    expect(linhasParaAmplitude(soCmj).tornozelo.direito).toBeNull();
+    expect(linhasParaAmplitude(soCmj).quadril.esquerdo).toBeNull();
   });
 });
 
-describe("testesParaCriacao", () => {
-  const teste = (codigo: string, ordens: number[]) => ({
-    codigo,
-    nome: codigo,
-    tentativas: ordens.map((ordem) => ({
-      ordem,
-      repeticoes: 8,
-      carga: { valor: 40, unidade: "kg" as const },
-      tempo: { valor: 9.8, unidade: "s" as const },
-    })),
+describe("bloco de velocidade", () => {
+  test("gera uma linha por exercicio do catalogo", () => {
+    const linhas = velocidadeParaLinhas(velocidade());
+
+    expect(linhas.map((l) => l.codigo)).toEqual(["SQUAT_JUMP", "AGACHAMENTO"]);
   });
 
-  test("a ordem do teste vem da posicao, nao do cliente", () => {
-    const criacao = testesParaCriacao([teste("SJ", [1]), teste("AGACHAMENTO", [1])]);
-
-    expect(criacao.map((t) => [t.codigo, t.ordem])).toEqual([
-      ["SJ", 0],
-      ["AGACHAMENTO", 1],
-    ]);
+  test("ida e volta preserva carga e tempo", () => {
+    expect(linhasParaVelocidade(velocidadeParaLinhas(velocidade()))).toEqual(
+      velocidade(),
+    );
   });
 
-  test("a ordem da tentativa vem do DTO, porque ali e dado do dominio", () => {
-    const criacao = testesParaCriacao([teste("SJ", [3, 1, 2])]);
+  /**
+   * Exercicio nao medido continua existindo como chave, com os dois valores
+   * `null` — mesma regra de `Medida`. Omitir a linha reabriria a ambiguidade
+   * entre "nao medido" e "nao existe neste modelo".
+   */
+  test("exercicio nao medido vira linha com os dois valores null", () => {
+    const linhas = velocidadeParaLinhas(
+      velocidade({ agachamento: { cargaKg: null, tempoSegundos: null } }),
+    );
 
-    expect(criacao[0].tentativas.create.map((t) => t.ordem)).toEqual([3, 1, 2]);
-  });
-
-  test("carga e tempo viram colunas achatadas", () => {
-    const criacao = testesParaCriacao([teste("SJ", [1])]);
-
-    expect(criacao[0].tentativas.create[0]).toMatchObject({
-      cargaValor: 40,
-      cargaUnidade: "kg",
-      tempoValor: 9.8,
-      tempoUnidade: "s",
+    expect(linhas).toHaveLength(2);
+    expect(linhas.find((l) => l.codigo === "AGACHAMENTO")).toMatchObject({
+      cargaKg: null,
+      tempoSegundos: null,
     });
   });
 
-  test("lista vazia nao inventa teste", () => {
-    expect(testesParaCriacao([])).toEqual([]);
+  test("carga zero e dado real e nao se confunde com nao medido", () => {
+    // Peso corporal: Squat Jump sem carga externa (proposta secao 6.3).
+    const linhas = velocidadeParaLinhas(
+      velocidade({ squatJump: { cargaKg: 0, tempoSegundos: 1.2 } }),
+    );
+    const voltou = linhasParaVelocidade(linhas);
+
+    expect(voltou.squatJump.cargaKg).toBe(0);
+    expect(voltou.squatJump.cargaKg).not.toBeNull();
+  });
+
+  test("exercicio ausente no banco vira chave com null", () => {
+    const voltou = linhasParaVelocidade([
+      { codigo: "SQUAT_JUMP", cargaKg: 20, tempoSegundos: 1.43 },
+    ]);
+
+    expect(voltou.squatJump.cargaKg).toBe(20);
+    expect(voltou.agachamento).toEqual({ cargaKg: null, tempoSegundos: null });
   });
 });
 
 describe("formato achatado do relatorio", () => {
+  const detalhadas = () =>
+    linhasParaMedidasDetalhadas(medidasParaLinhas(amplitude(), saltos()));
+
   test("bilateral rende dois valores com a sigla da planilha", () => {
-    const detalhadas = linhasParaMedidasDetalhadas(medidasParaLinhas(medidas()));
-    const slb = detalhadas.find((m) => m.codigo === "SLB")!;
+    const slb = detalhadas().find((m) => m.codigo === "SLB")!;
 
     expect(slb.valores.map((v) => v.sigla)).toEqual(["SLB DIR", "SLB ESQ"]);
     expect(slb.valores.map((v) => v.valor)).toEqual([32.5, 31.9]);
   });
 
   test("medida simples rende um valor sem lado", () => {
-    const detalhadas = linhasParaMedidasDetalhadas(medidasParaLinhas(medidas()));
-    const cmj = detalhadas.find((m) => m.codigo === "CMJ")!;
+    const cmj = detalhadas().find((m) => m.codigo === "CMJ")!;
 
     expect(cmj.valores).toHaveLength(1);
     expect(cmj.valores[0]).toMatchObject({ sigla: "CMJ", lado: null, valor: 42.8 });
+  });
+
+  /**
+   * O relatorio precisa saber a que bloco cada medida pertence pra agrupar
+   * Amplitude e Salto em tabelas diferentes (proposta secao 9.2).
+   */
+  test("cada medida carrega o bloco a que pertence", () => {
+    const porCodigo = new Map(detalhadas().map((m) => [m.codigo, m]));
+
+    expect(porCodigo.get("MOBILIDADE_TORNOZELO")!.bloco).toBe("amplitude");
+    expect(porCodigo.get("CMJ")!.bloco).toBe("salto");
+    expect(porCodigo.get("SALTO_5")!.bloco).toBe("salto");
+  });
+
+  test("salto sem unidade confirmada chega ao relatorio como null", () => {
+    // Quem renderiza precisa imprimir o numero sem sufixo, nunca chutar "cm".
+    const salto2 = detalhadas().find((m) => m.codigo === "SALTO_2")!;
+
+    expect(salto2.unidade).toBeNull();
   });
 
   test("codigo fora do catalogo cai de volta no proprio codigo", () => {
@@ -184,45 +253,28 @@ describe("serializarAvaliacao", () => {
       dataAvaliacao: paraData("2026-04-30"),
       observacoes: null,
       criadoEm: new Date("2026-04-30T13:00:00.000Z"),
-      medidas: medidasParaLinhas(medidas()),
-      testes: [],
+      medidas: medidasParaLinhas(amplitude(), saltos()),
+      velocidades: velocidadeParaLinhas(velocidade()),
     });
 
-  test("devolve o mesmo formato do DTO de entrada, mais id e criadoEm", () => {
-    const resposta = serializarAvaliacao({
-      id: "aval-1",
-      alunoId: "aluno-1",
-      dataAvaliacao: paraData("2026-04-30"),
-      observacoes: "Boa evolucao.",
-      criadoEm: new Date("2026-04-30T13:00:00.000Z"),
-      medidas: medidasParaLinhas(medidas()),
-      testes: [
-        {
-          codigo: "AGACHAMENTO",
-          nome: "Agachamento",
-          ordem: 0,
-          tentativas: [
-            {
-              ordem: 1,
-              repeticoes: 8,
-              cargaValor: 60,
-              cargaUnidade: "kg",
-              tempoValor: 11.9,
-              tempoUnidade: "s",
-            },
-          ],
-        },
-      ],
-    });
+  test("devolve os mesmos tres blocos do DTO de entrada, mais id e criadoEm", () => {
+    const resposta = respostaDeExemplo();
 
     expect(resposta.dataAvaliacao).toBe("2026-04-30");
-    expect(resposta.medidas.cmj.valor).toBe(42.8);
-    expect(resposta.testes[0].tentativas[0]).toEqual({
-      ordem: 1,
-      repeticoes: 8,
-      carga: { valor: 60, unidade: "kg" },
-      tempo: { valor: 11.9, unidade: "s" },
-    });
+    expect(resposta.amplitude).toEqual(amplitude());
+    expect(resposta.saltos).toEqual(saltos());
+    expect(resposta.velocidade).toEqual(velocidade());
+  });
+
+  /**
+   * A simetria entrada/saida e o que permite o front usar a resposta do GET pra
+   * preencher o formulario de edicao sem tabela de traducao.
+   */
+  test("a saida tambem nao carrega unidade nenhuma", () => {
+    const resposta = respostaDeExemplo();
+    const serializado = JSON.stringify(resposta);
+
+    expect(serializado).not.toContain("unidade");
   });
 
   test("nenhum Date sobrevive ate a resposta", () => {
