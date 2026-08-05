@@ -12,6 +12,18 @@ const prisma = new PrismaClient({
  * Dados ficticios pro front ter o que renderizar. Nada aqui e de atleta real.
  * Gera um historico de avaliacoes com evolucao plausivel: CMJ subindo e depois
  * estabilizando, cargas aumentando e tempos melhorando de leve.
+ *
+ * ## Formato v2
+ *
+ * As tentativas do seed v1 foram descartadas junto com as tabelas `Teste` e
+ * `Tentativa`. Nao havia como escolher automaticamente "a melhor" — a escolha e
+ * do professor e acontece fora do sistema —, e inventar um criterio (maior
+ * carga? menor tempo?) seria fabricar dado
+ * (evaluation-model-v2-proposal.md §13).
+ *
+ * A contagem por aluno e preservada de proposito: Ana 8, Bruno 5, Carla 3. E o
+ * que o front usa pra conferir listagem, paginacao e historico, e mudar o numero
+ * junto com o formato dificultaria saber qual dos dois quebrou alguma tela.
  */
 
 const ALUNOS = [
@@ -20,11 +32,26 @@ const ALUNOS = [
   { nome: "Carla Menezes", dataNascimento: "1995-07-21", avaliacoes: 3 },
 ];
 
-const MEDIDAS_BASE = {
+const AMPLITUDE_BASE = {
   MOBILIDADE_TORNOZELO: { direito: 11.5, esquerdo: 12.1 },
   MOBILIDADE_QUADRIL: { direito: 18.4, esquerdo: 17.8 },
   AMPLITUDE_ISQUIOTIBIAIS: { direito: 21.0, esquerdo: 20.7 },
   SLB: { direito: 32.5, esquerdo: 31.9 },
+};
+
+/**
+ * Fatores aplicados ao CMJ pra derivar os outros quatro saltos.
+ *
+ * ⚠️ Sao numeros PLAUSIVEIS, nao medidos, e nao afirmam unidade nenhuma: a
+ * coluna `unidade` destes quatro codigos e `NULL` ate o cliente responder o
+ * bloqueio B6. Se a resposta for que algum deles e razao ou percentual, estes
+ * valores mudam de escala — por isso ficam isolados numa constante so.
+ */
+const FATOR_SALTO = {
+  SALTO_2: 0.89,
+  SALTO_3: 0.82,
+  SALTO_4: 0.71,
+  SALTO_5: 0.68,
 };
 
 function dataDaAvaliacao(indice: number, total: number): Date {
@@ -56,43 +83,48 @@ async function main() {
         data: {
           alunoId: aluno.id,
           dataAvaliacao: dataDaAvaliacao(i, dadosAluno.avaliacoes),
-          observacoes: i === dadosAluno.avaliacoes - 1 ? "Avaliacao de exemplo." : null,
+          observacoes:
+            i === dadosAluno.avaliacoes - 1 ? "Avaliacao de exemplo." : null,
           medidas: {
             create: [
-              ...Object.entries(MEDIDAS_BASE).map(([codigo, lados]) => ({
+              ...Object.entries(AMPLITUDE_BASE).map(([codigo, lados]) => ({
                 codigo,
                 unidade: "cm",
                 direito: Number((lados.direito * ganho).toFixed(1)),
                 esquerdo: Number((lados.esquerdo * ganho).toFixed(1)),
                 valor: null,
               })),
-              { codigo: "CMJ", unidade: "cm", direito: null, esquerdo: null, valor: cmj },
+              {
+                codigo: "CMJ",
+                unidade: "cm",
+                direito: null,
+                esquerdo: null,
+                valor: cmj,
+              },
+              ...Object.entries(FATOR_SALTO).map(([codigo, fator]) => ({
+                codigo,
+                // NULL de proposito: unidade desconhecida (bloqueio B6).
+                unidade: null,
+                direito: null,
+                esquerdo: null,
+                valor: Number((cmj * fator).toFixed(2)),
+              })),
             ],
           },
-          testes: {
+          // Dois exercicios, um par carga/tempo cada — o maximo que o modelo v2
+          // produz. Cargas distintas de proposito: com as duas iguais a
+          // regressao nao tem solucao e `ajustarCurva` devolve `null`.
+          velocidades: {
             create: [
               {
-                codigo: "SALTO_AGACHADO",
-                nome: "SJ",
-                ordem: 0,
-                tentativas: {
-                  create: [
-                    tentativa(1, 2, 20, 1.43 / ganho),
-                    tentativa(2, 2, 30, 1.59 / ganho),
-                  ],
-                },
+                codigo: "SQUAT_JUMP",
+                cargaKg: 20,
+                tempoSegundos: Number((1.43 / ganho).toFixed(2)),
               },
               {
                 codigo: "AGACHAMENTO",
-                nome: "Agachamento",
-                ordem: 1,
-                tentativas: {
-                  create: [
-                    tentativa(1, 8, 40, 9.8 / ganho),
-                    tentativa(2, 8, 50, 10.6 / ganho),
-                    tentativa(3, 8, 60, 11.9 / ganho),
-                  ],
-                },
+                cargaKg: 60,
+                tempoSegundos: Number((1.91 / ganho).toFixed(2)),
               },
             ],
           },
@@ -104,22 +136,6 @@ async function main() {
   const totalAlunos = await prisma.aluno.count();
   const totalAvaliacoes = await prisma.avaliacao.count();
   console.log(`Seed ok: ${totalAlunos} alunos e ${totalAvaliacoes} avaliacoes.`);
-}
-
-function tentativa(
-  ordem: number,
-  repeticoes: number,
-  cargaKg: number,
-  tempoS: number,
-) {
-  return {
-    ordem,
-    repeticoes,
-    cargaValor: cargaKg,
-    cargaUnidade: "kg",
-    tempoValor: Number(tempoS.toFixed(2)),
-    tempoUnidade: "s",
-  };
 }
 
 main()

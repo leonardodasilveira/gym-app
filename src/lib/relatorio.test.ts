@@ -1,22 +1,27 @@
 import { describe, expect, test } from "vitest";
 
 import { medidasParaLinhas, paraData } from "@/lib/avaliacoes";
-import { montarRelatorio, type AvaliacaoParaRelatorio, type PontoCmj } from "@/lib/relatorio";
-import type { MedidasDTO } from "@/lib/schemas";
+import {
+  montarRelatorio,
+  type AvaliacaoParaRelatorio,
+  type PontoCmj,
+} from "@/lib/relatorio";
+import type { AmplitudeDTO, SaltosDTO } from "@/lib/schemas";
 
-const MEDIDAS_VAZIAS: MedidasDTO = {
-  mobilidadeTornozelo: { unidade: "cm", direito: null, esquerdo: null },
-  mobilidadeQuadril: { unidade: "cm", direito: null, esquerdo: null },
-  amplitudeIsquiotibiais: { unidade: "cm", direito: null, esquerdo: null },
-  slb: { unidade: "cm", direito: null, esquerdo: null },
-  cmj: { unidade: "cm", valor: 42.8 },
+const AMPLITUDE_VAZIA: AmplitudeDTO = {
+  tornozelo: { direito: null, esquerdo: null },
+  quadril: { direito: null, esquerdo: null },
+  isquiotibiais: { direito: null, esquerdo: null },
+  slb: { direito: null, esquerdo: null },
 };
 
-const tentativa = (repeticoes: number, cargaValor: number, tempoValor: number) => ({
-  repeticoes,
-  cargaValor,
-  tempoValor,
-});
+const SALTOS: SaltosDTO = {
+  cmj: 42.8,
+  salto2: null,
+  salto3: null,
+  salto4: null,
+  salto5: null,
+};
 
 const avaliacao = (
   parcial: Partial<AvaliacaoParaRelatorio> = {},
@@ -25,13 +30,10 @@ const avaliacao = (
   dataAvaliacao: paraData("2026-04-30"),
   observacoes: null,
   aluno: { id: "aluno-1", nome: "Atleta de teste" },
-  medidas: medidasParaLinhas(MEDIDAS_VAZIAS),
-  testes: [
-    {
-      codigo: "AGACHAMENTO",
-      nome: "Agachamento",
-      tentativas: [tentativa(8, 40, 9.8), tentativa(8, 60, 11.9)],
-    },
+  medidas: medidasParaLinhas(AMPLITUDE_VAZIA, SALTOS),
+  velocidades: [
+    { codigo: "SQUAT_JUMP", cargaKg: 40, tempoSegundos: 9.8 },
+    { codigo: "AGACHAMENTO", cargaKg: 60, tempoSegundos: 11.9 },
   ],
   ...parcial,
 });
@@ -106,55 +108,83 @@ describe("resumo do CMJ", () => {
 });
 
 /**
- * Ligacao direta entre o modelo de dados e o relatorio: a curva so existe com
- * pontos de carga distintos suficientes. Vale ter isso em teste porque a
- * quantidade de pontos por avaliacao e exatamente a decisao de modelagem em
- * aberto (docs/evaluation-model-v2-proposal.md secao 9.4).
+ * A curva forca-velocidade, o ajuste, o perfil e o score sairam do relatorio em
+ * 05/08/2026. Motivo: o modelo v2 reduziu a curva de 8 pontos para no maximo 2,
+ * e com 2 pontos a reta e exata por construcao — `r2` da 1 sempre, e perfil e
+ * score viram funcao de duas medicoes.
+ *
+ * O relatorio passa a publicar o dado **medido** (carga e tempo), sem nenhuma
+ * derivacao. Estes testes existem pra que reintroduzir qualquer numero derivado
+ * seja decisao explicita, e nao volta silenciosa.
  */
-describe("curva dentro do relatorio", () => {
-  test("os pontos saem ordenados por carga", () => {
+describe("velocidade no relatorio: dado medido, sem derivacao", () => {
+  test("publica carga e tempo como o professor digitou", () => {
+    const relatorio = montarRelatorio(avaliacao(), HISTORICO);
+
+    expect(relatorio.velocidade).toEqual({
+      squatJump: { cargaKg: 40, tempoSegundos: 9.8 },
+      agachamento: { cargaKg: 60, tempoSegundos: 11.9 },
+    });
+  });
+
+  test("a versao detalhada traz o nome do exercicio pronto pra imprimir", () => {
+    const relatorio = montarRelatorio(avaliacao(), HISTORICO);
+
+    expect(relatorio.velocidadeDetalhada).toEqual([
+      { codigo: "SQUAT_JUMP", nome: "Squat Jump", cargaKg: 40, tempoSegundos: 9.8 },
+      { codigo: "AGACHAMENTO", nome: "Agachamento", cargaKg: 60, tempoSegundos: 11.9 },
+    ]);
+  });
+
+  test("exercicio nao medido aparece com null, nao some nem vira zero", () => {
     const relatorio = montarRelatorio(
       avaliacao({
-        testes: [
-          {
-            codigo: "AGACHAMENTO",
-            nome: "Agachamento",
-            tentativas: [tentativa(8, 60, 11.9), tentativa(8, 40, 9.8)],
-          },
+        velocidades: [
+          { codigo: "SQUAT_JUMP", cargaKg: 40, tempoSegundos: 9.8 },
+          { codigo: "AGACHAMENTO", cargaKg: null, tempoSegundos: null },
         ],
       }),
       HISTORICO,
     );
 
-    expect(relatorio.curva.pontos.map((p) => p.cargaKg)).toEqual([40, 60]);
-    expect(relatorio.curva.cargaMaximaKg).toBe(60);
+    expect(relatorio.velocidadeDetalhada).toHaveLength(2);
+    expect(relatorio.velocidadeDetalhada[1]).toMatchObject({
+      nome: "Agachamento",
+      cargaKg: null,
+      tempoSegundos: null,
+    });
   });
 
-  test("um unico ponto de carga deixa o relatorio sem curva", () => {
-    const relatorio = montarRelatorio(
-      avaliacao({
-        testes: [
-          {
-            codigo: "AGACHAMENTO",
-            nome: "Agachamento",
-            tentativas: [tentativa(8, 60, 11.9)],
-          },
-        ],
-      }),
-      HISTORICO,
-    );
+  test("avaliacao sem nenhuma velocidade gravada nao quebra o relatorio", () => {
+    const relatorio = montarRelatorio(avaliacao({ velocidades: [] }), HISTORICO);
 
-    expect(relatorio.curva.ajuste).toBeNull();
-    expect(relatorio.curva.perfil).toBe("Dados insuficientes");
-    expect(relatorio.score).toEqual({ valor: 0, nivel: "Sem dados" });
+    expect(relatorio.velocidadeDetalhada).toHaveLength(2);
+    expect(relatorio.velocidade.squatJump).toEqual({
+      cargaKg: null,
+      tempoSegundos: null,
+    });
   });
 
-  test("avaliacao sem nenhum teste tambem fica sem curva", () => {
-    const relatorio = montarRelatorio(avaliacao({ testes: [] }), HISTORICO);
+  test("nenhum numero derivado sobrou na resposta", () => {
+    const relatorio = montarRelatorio(avaliacao(), HISTORICO);
+    const chaves = Object.keys(relatorio);
 
-    expect(relatorio.curva.pontos).toEqual([]);
-    expect(relatorio.curva.cargaMaximaKg).toBeNull();
-    expect(relatorio.curva.ajuste).toBeNull();
+    for (const removida of ["curva", "score"]) {
+      expect(chaves).not.toContain(removida);
+    }
+    // Nem escondido dentro de outro bloco.
+    const json = JSON.stringify(relatorio);
+    expect(json).not.toContain("velocidadeMs");
+    expect(json).not.toContain("perfil");
+  });
+});
+
+describe("blocos de medida na resposta", () => {
+  test("amplitude e saltos saem separados, como na entrada", () => {
+    const relatorio = montarRelatorio(avaliacao(), HISTORICO);
+
+    expect(relatorio.amplitude).toEqual(AMPLITUDE_VAZIA);
+    expect(relatorio.saltos).toEqual(SALTOS);
   });
 });
 
@@ -162,8 +192,11 @@ describe("o que o relatorio marca como provisorio", () => {
   test("a resposta declara explicitamente o que ainda nao e real", () => {
     // Se alguem implementar a formula de verdade e esquecer de tirar o aviso,
     // o front continua exibindo "provisorio" pra dado bom. Este teste lembra.
+    //
+    // `curva` e `score` sairam da lista junto com as secoes que descreviam:
+    // sobrou so o texto lorem ipsum.
     const relatorio = montarRelatorio(avaliacao(), HISTORICO);
 
-    expect(Object.keys(relatorio.provisorio)).toEqual(["curva", "score", "textos"]);
+    expect(Object.keys(relatorio.provisorio)).toEqual(["textos"]);
   });
 });

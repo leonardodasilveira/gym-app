@@ -1,105 +1,167 @@
 import {
+  EXERCICIOS_VELOCIDADE,
   MEDIDAS,
+  MEDIDAS_AMPLITUDE,
+  MEDIDAS_SALTO,
   medidaPorCodigo,
   siglaComLado,
   type ChaveMedida,
   type Lado,
 } from "@/lib/medidas";
-import type { CriarAvaliacaoDTO, MedidasDTO } from "@/lib/schemas";
+import type { AmplitudeDTO, SaltosDTO, VelocidadeDTO } from "@/lib/schemas";
 
 /**
- * Conversao entre o formato do contrato do front (objeto `medidas` com chaves
- * fixas) e o formato do banco (tabela `Medida`, uma linha por codigo).
+ * Conversao entre o formato do contrato do front (tres blocos de chaves fixas)
+ * e o formato do banco (tabelas `Medida` e `MedidaVelocidade`, uma linha por
+ * codigo).
+ *
+ * Regra que atravessa o arquivo inteiro: **toda chave sempre presente, `null`
+ * onde nao foi medido**. Nenhuma funcao daqui pode transformar ausencia em zero
+ * — e o defeito herdado da planilha que o produto existe pra eliminar
+ * (docs/planilha-atual.md §139-141).
  */
 
 export type LinhaMedida = {
   codigo: string;
-  unidade: string;
+  unidade: string | null;
   direito: number | null;
   esquerdo: number | null;
   valor: number | null;
 };
 
-/** `medidas` do DTO -> linhas prontas pro `create` do Prisma. */
-export function medidasParaLinhas(medidas: MedidasDTO): LinhaMedida[] {
-  return MEDIDAS.map((definicao) => {
-    const entrada = medidas[definicao.chave as keyof MedidasDTO];
+export type LinhaVelocidade = {
+  codigo: string;
+  cargaKg: number | null;
+  tempoSegundos: number | null;
+};
 
-    if (definicao.bilateral) {
-      const bilateral = entrada as { unidade: string; direito: number | null; esquerdo: number | null };
-      return {
-        codigo: definicao.codigo,
-        unidade: bilateral.unidade,
-        direito: bilateral.direito,
-        esquerdo: bilateral.esquerdo,
-        valor: null,
-      };
-    }
+// --- blocos Amplitude e Salto ---------------------------------------------
 
-    const simples = entrada as { unidade: string; valor: number | null };
+/**
+ * Os dois blocos viram linhas da mesma tabela `Medida`: a distincao entre eles e
+ * de apresentacao (o campo `bloco` do catalogo), nao de forma do dado. A
+ * `unidade` vem do catalogo, nunca do payload — o v2 nao transporta unidade.
+ *
+ * Os conversores sao **por bloco**, e nao um so pros dois, porque o PATCH aceita
+ * substituir `amplitude` sem tocar em `saltos` (e vice-versa). Com um conversor
+ * unico, regravar um bloco exigiria apagar as linhas do outro junto.
+ */
+export function amplitudeParaLinhas(amplitude: AmplitudeDTO): LinhaMedida[] {
+  return MEDIDAS_AMPLITUDE.map((definicao) => {
+    const par = amplitude[definicao.chave as keyof AmplitudeDTO];
     return {
       codigo: definicao.codigo,
-      unidade: simples.unidade,
-      direito: null,
-      esquerdo: null,
-      valor: simples.valor,
+      unidade: definicao.unidade,
+      direito: par.direito,
+      esquerdo: par.esquerdo,
+      valor: null,
     };
   });
 }
 
-/** Linhas do banco -> objeto `medidas` no formato que o front espera. */
-export function linhasParaMedidas(linhas: LinhaMedida[]): MedidasDTO {
-  const porCodigo = new Map(linhas.map((linha) => [linha.codigo, linha]));
-
-  const entradas = MEDIDAS.map((definicao) => {
-    const linha = porCodigo.get(definicao.codigo);
-    const unidade = (linha?.unidade ?? definicao.unidade) as "cm";
-
-    const valor = definicao.bilateral
-      ? { unidade, direito: linha?.direito ?? null, esquerdo: linha?.esquerdo ?? null }
-      : { unidade, valor: linha?.valor ?? null };
-
-    return [definicao.chave, valor] as const;
-  });
-
-  return Object.fromEntries(entradas) as MedidasDTO;
-}
-
-/**
- * `testes` do DTO -> payload de `create` aninhado do Prisma.
- *
- * A `ordem` do teste sai da posicao no array, nao do cliente: o front manda a
- * lista na ordem em que o professor digitou e nao precisa numerar nada. Ja a
- * `ordem` da tentativa vem do DTO, porque ali ela e dado do dominio (a sequencia
- * das series) e nao apresentacao.
- *
- * Usado pelo POST e pelo PATCH — os dois gravam o bloco de testes inteiro.
- */
-export function testesParaCriacao(testes: CriarAvaliacaoDTO["testes"]) {
-  return testes.map((teste, indice) => ({
-    codigo: teste.codigo,
-    nome: teste.nome,
-    ordem: indice,
-    tentativas: {
-      create: teste.tentativas.map((tentativa) => ({
-        ordem: tentativa.ordem,
-        repeticoes: tentativa.repeticoes,
-        cargaValor: tentativa.carga.valor,
-        cargaUnidade: tentativa.carga.unidade,
-        tempoValor: tentativa.tempo.valor,
-        tempoUnidade: tentativa.tempo.unidade,
-      })),
-    },
+export function saltosParaLinhas(saltos: SaltosDTO): LinhaMedida[] {
+  return MEDIDAS_SALTO.map((definicao) => ({
+    codigo: definicao.codigo,
+    unidade: definicao.unidade,
+    direito: null,
+    esquerdo: null,
+    valor: saltos[definicao.chave as keyof SaltosDTO],
   }));
 }
+
+/** Os dois blocos de uma vez — o caminho do POST, que sempre recebe ambos. */
+export function medidasParaLinhas(
+  amplitude: AmplitudeDTO,
+  saltos: SaltosDTO,
+): LinhaMedida[] {
+  return [...amplitudeParaLinhas(amplitude), ...saltosParaLinhas(saltos)];
+}
+
+/** Codigos persistidos de cada bloco — o `where` do delete no PATCH. */
+export const CODIGOS_AMPLITUDE = MEDIDAS_AMPLITUDE.map((m) => m.codigo);
+export const CODIGOS_SALTO = MEDIDAS_SALTO.map((m) => m.codigo);
+
+/** Linhas do banco -> bloco `amplitude` no formato que o front espera. */
+export function linhasParaAmplitude(linhas: LinhaMedida[]): AmplitudeDTO {
+  const porCodigo = new Map(linhas.map((linha) => [linha.codigo, linha]));
+
+  const entradas = MEDIDAS_AMPLITUDE.map((definicao) => {
+    const linha = porCodigo.get(definicao.codigo);
+    return [
+      definicao.chave,
+      { direito: linha?.direito ?? null, esquerdo: linha?.esquerdo ?? null },
+    ] as const;
+  });
+
+  return Object.fromEntries(entradas) as AmplitudeDTO;
+}
+
+/** Linhas do banco -> bloco `saltos` no formato que o front espera. */
+export function linhasParaSaltos(linhas: LinhaMedida[]): SaltosDTO {
+  const porCodigo = new Map(linhas.map((linha) => [linha.codigo, linha]));
+
+  const entradas = MEDIDAS_SALTO.map(
+    (definicao) =>
+      [definicao.chave, porCodigo.get(definicao.codigo)?.valor ?? null] as const,
+  );
+
+  return Object.fromEntries(entradas) as SaltosDTO;
+}
+
+// --- bloco Velocidade ------------------------------------------------------
+
+/**
+ * `velocidade` do DTO -> linhas prontas pro `create` do Prisma.
+ *
+ * Grava as duas linhas sempre, mesmo com carga e tempo `null`. Poderia omitir a
+ * linha vazia e economizar dois registros, mas isso reintroduziria a ambiguidade
+ * entre "exercicio nao medido" e "exercicio nunca existiu neste modelo" na hora
+ * de ler de volta. Duas linhas por avaliacao e um preco irrisorio pela
+ * simetria com `Medida`.
+ */
+export function velocidadeParaLinhas(
+  velocidade: VelocidadeDTO,
+): LinhaVelocidade[] {
+  return EXERCICIOS_VELOCIDADE.map((definicao) => {
+    const exercicio = velocidade[definicao.chave as keyof VelocidadeDTO];
+    return {
+      codigo: definicao.codigo,
+      cargaKg: exercicio.cargaKg,
+      tempoSegundos: exercicio.tempoSegundos,
+    };
+  });
+}
+
+/** Linhas do banco -> bloco `velocidade` no formato que o front espera. */
+export function linhasParaVelocidade(
+  linhas: LinhaVelocidade[],
+): VelocidadeDTO {
+  const porCodigo = new Map(linhas.map((linha) => [linha.codigo, linha]));
+
+  const entradas = EXERCICIOS_VELOCIDADE.map((definicao) => {
+    const linha = porCodigo.get(definicao.codigo);
+    return [
+      definicao.chave,
+      {
+        cargaKg: linha?.cargaKg ?? null,
+        tempoSegundos: linha?.tempoSegundos ?? null,
+      },
+    ] as const;
+  });
+
+  return Object.fromEntries(entradas) as VelocidadeDTO;
+}
+
+// --- formato achatado pro relatorio ---------------------------------------
 
 export type MedidaDetalhada = {
   chave: ChaveMedida;
   codigo: string;
   sigla: string;
   nome: string;
-  unidade: string;
+  unidade: string | null;
   bilateral: boolean;
+  bloco: "amplitude" | "salto";
   /** Uma entrada por lado, ou uma so quando a medida e de valor unico. */
   valores: { sigla: string; rotulo: string; lado: Lado | null; valor: number | null }[];
 };
@@ -107,6 +169,10 @@ export type MedidaDetalhada = {
 /**
  * Formato achatado pro relatorio: cada valor ja vem com a sigla do professor
  * (`SLB ESQ`) pronta pra imprimir, sem o front precisar montar rotulo.
+ *
+ * `unidade` pode vir `null` (os quatro saltos, bloqueio B6). Quem renderiza
+ * **precisa** tratar esse caso — imprimir o numero sem sufixo e o comportamento
+ * correto, nunca chutar "cm".
  */
 export function linhasParaMedidasDetalhadas(
   linhas: LinhaMedida[],
@@ -139,6 +205,7 @@ export function linhasParaMedidasDetalhadas(
       nome: definicao.nome,
       unidade: linha?.unidade ?? definicao.unidade,
       bilateral: definicao.bilateral,
+      bloco: definicao.bloco,
       valores,
     };
   });
@@ -174,38 +241,24 @@ type AvaliacaoParaSerializar = {
   observacoes: string | null;
   criadoEm: Date;
   medidas: LinhaMedida[];
-  testes: {
-    codigo: string;
-    nome: string;
-    ordem: number;
-    tentativas: {
-      ordem: number;
-      repeticoes: number;
-      cargaValor: number;
-      cargaUnidade: string;
-      tempoValor: number;
-      tempoUnidade: string;
-    }[];
-  }[];
+  velocidades: LinhaVelocidade[];
 };
 
-/** Devolve a avaliacao no mesmo formato do DTO de entrada, mais id e criadoEm. */
+/**
+ * Devolve a avaliacao no mesmo formato do DTO de entrada, mais id e criadoEm.
+ *
+ * A simetria entrada/saida e deliberada: o front usa a resposta do GET pra
+ * preencher o formulario de edicao sem tabela de traducao. Por isso a saida
+ * tambem nao carrega unidade — quem precisa de rotulo le o catalogo.
+ */
 export function serializarAvaliacao(avaliacao: AvaliacaoParaSerializar) {
   return {
     id: avaliacao.id,
     alunoId: avaliacao.alunoId,
     dataAvaliacao: formatarData(avaliacao.dataAvaliacao),
-    medidas: linhasParaMedidas(avaliacao.medidas),
-    testes: avaliacao.testes.map((teste) => ({
-      codigo: teste.codigo,
-      nome: teste.nome,
-      tentativas: teste.tentativas.map((tentativa) => ({
-        ordem: tentativa.ordem,
-        repeticoes: tentativa.repeticoes,
-        carga: { valor: tentativa.cargaValor, unidade: tentativa.cargaUnidade },
-        tempo: { valor: tentativa.tempoValor, unidade: tentativa.tempoUnidade },
-      })),
-    })),
+    amplitude: linhasParaAmplitude(avaliacao.medidas),
+    saltos: linhasParaSaltos(avaliacao.medidas),
+    velocidade: linhasParaVelocidade(avaliacao.velocidades),
     observacoes: avaliacao.observacoes,
     criadoEm: avaliacao.criadoEm.toISOString(),
   };
@@ -216,7 +269,7 @@ export function serializarAvaliacao(avaliacao: AvaliacaoParaSerializar) {
  * serializacao, nao declarado a mao — mudar o formato acima quebra o typecheck
  * de quem consome, que e a mitigacao pedida pelo risco R3 do frontend-plan.md.
  *
- * O front nao precisa mais fazer `ReturnType<typeof serializarAvaliacao>`:
+ * O front nao precisa fazer `ReturnType<typeof serializarAvaliacao>`:
  *
  *   import type { AvaliacaoResponse } from "@/lib/avaliacoes";
  *
@@ -227,17 +280,14 @@ export function serializarAvaliacao(avaliacao: AvaliacaoParaSerializar) {
  */
 export type AvaliacaoResponse = ReturnType<typeof serializarAvaliacao>;
 
-/** Um exercicio dentro da avaliacao, como sai na resposta. */
-export type TesteResponse = AvaliacaoResponse["testes"][number];
+/** Bloco de velocidade como sai na resposta. */
+export type VelocidadeResponse = AvaliacaoResponse["velocidade"];
 
-/** Uma serie do exercicio, como sai na resposta. */
-export type TentativaResponse = TesteResponse["tentativas"][number];
+/** Um exercicio de velocidade como sai na resposta. */
+export type ExercicioResponse = VelocidadeResponse[keyof VelocidadeResponse];
 
 /** `include` padrao pra carregar a avaliacao inteira de uma vez. */
 export const avaliacaoCompleta = {
   medidas: true,
-  testes: {
-    orderBy: { ordem: "asc" },
-    include: { tentativas: { orderBy: { ordem: "asc" } } },
-  },
+  velocidades: true,
 } as const;
