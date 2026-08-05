@@ -32,10 +32,19 @@ export function AvaliacaoFormV2({ alunoId, alunoNome, alunoAtivo, referencia, da
   useEffect(() => { if (estado.status !== "erro") return; formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(); }, [estado]);
   useEffect(() => { if (estado.status === "sucesso") limparRascunho(alunoId); }, [estado, alunoId]);
   const valores = estado.status === "erro" || estado.status === "pendente-integracao" ? estado.valores : { dataAvaliacao: dataPadrao, observacoes: "", campos: {} };
+  // Base UI fixa o estado interno de `defaultValue` na montagem. React 19
+  // reseta o form ao concluir a action; quando o eco volta, uma nova instância
+  // recebe esses defaults em vez de mutá-los num FieldControl já inicializado.
+  const chaveFormulario =
+    estado.status === "erro"
+      ? `erro:${estado.tentativa}`
+      : estado.status === "pendente-integracao"
+        ? `pendente-integracao:${JSON.stringify(estado.valores)}`
+        : estado.status;
   const erros = estado.status === "erro" ? estado.errosPorCampo : {}; const mensagem = estado.status === "erro" ? estado.mensagem : null; const entradasErro = Object.entries(erros); const mostrarResumo = entradasErro.length > 1 || mensagem !== null;
   function aplicar(valoresAplicados: ValoresAvaliacaoV2) { const form = formRef.current; if (!form) return; for (const [nome, valor] of [["dataAvaliacao", valoresAplicados.dataAvaliacao], ["observacoes", valoresAplicados.observacoes], ...Object.entries(valoresAplicados.campos)]) { const campo = form.elements.namedItem(nome); if (campo instanceof HTMLInputElement || campo instanceof HTMLTextAreaElement) campo.value = valor; } }
   return <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6"><Link href={`/alunos/${alunoId}`} className="text-sm underline-offset-4 hover:underline">← Voltar</Link><div className="mt-4 flex items-center gap-2"><h1 className="text-2xl font-semibold">Nova avaliação</h1>{!alunoAtivo ? <Badge variant="outline">Inativo</Badge> : null}</div><p className="mt-1 text-muted-foreground">{alunoNome}</p><div className="mt-6"><AvisoFormularioProvisorio /></div>
-    <form ref={formRef} action={dispatch} className="mt-4 flex flex-col gap-6" onInput={() => { if (timerRef.current) clearTimeout(timerRef.current); timerRef.current = setTimeout(() => { if (formRef.current) gravarRascunho(alunoId, formDataParaValoresV2(new FormData(formRef.current))); }, 800); }} onSubmit={(e) => { if (emAndamentoRef.current) e.preventDefault(); else emAndamentoRef.current = true; }}>
+    <form key={chaveFormulario} ref={formRef} action={dispatch} className="mt-4 flex flex-col gap-6" onInput={() => { if (timerRef.current) clearTimeout(timerRef.current); timerRef.current = setTimeout(() => { if (formRef.current) gravarRascunho(alunoId, formDataParaValoresV2(new FormData(formRef.current))); }, 800); }} onSubmit={(e) => { if (emAndamentoRef.current) e.preventDefault(); else emAndamentoRef.current = true; }}>
       {rascunho ? <section className="rounded-lg border p-4"><p className="font-semibold">Rascunho encontrado</p><div className="mt-2 flex gap-2"><Button type="button" className="h-11 sm:h-9" onClick={() => { aplicar(rascunho.valores); setRascunho(null); }}>Restaurar</Button><Button type="button" variant="outline" className="h-11 sm:h-9" onClick={() => { limparRascunho(alunoId); setRascunho(null); }}>Descartar</Button></div></section> : null}
       {mostrarResumo ? <div role="alert" className="rounded-lg border border-current p-4 text-sm"><p className="font-semibold">Corrija os itens abaixo:</p><ul className="list-disc pl-5">{mensagem ? <li>{mensagem}</li> : null}{entradasErro.map(([campo, erro]) => <li key={campo}>{erro}</li>)}</ul></div> : null}
       {estado.status === "pendente-integracao" ? <div role="status" className="rounded-lg border p-4"><p className="font-semibold">Preenchimento validado</p><p className="mt-1 text-sm">{estado.mensagem}</p></div> : null}
