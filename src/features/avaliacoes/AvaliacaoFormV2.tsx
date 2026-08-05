@@ -8,6 +8,8 @@ import { CampoFormulario } from "@/components/ui/campo-formulario";
 import { cn } from "@/components/utils";
 import { criarAvaliacaoV2 } from "./acoes";
 import { AvisoFormularioProvisorio } from "./AvisoFormularioProvisorio";
+import { AmplitudeFieldset } from "./AmplitudeFieldset";
+import { SaltosFieldset } from "./SaltosFieldset";
 import { formDataParaValoresV2 } from "./mappers";
 import type { ReferenciaAnteriorV2 } from "./mappers";
 import { gravarRascunho, lerRascunho, limparRascunho, type Rascunho } from "./rascunho";
@@ -17,7 +19,6 @@ const INICIAL: EstadoAvaliacaoV2 = { status: "inicial" };
 type Props = { alunoId: string; alunoNome: string; alunoAtivo: boolean; referencia: ReferenciaAnteriorV2 | null; dataPadrao: string };
 
 export function AvaliacaoFormV2({ alunoId, alunoNome, alunoAtivo, referencia, dataPadrao }: Props) {
-  void referencia;
   const acao = criarAvaliacaoV2.bind(null, { alunoId });
   const [estado, dispatch, pendente] = useActionState(acao, INICIAL);
   const formRef = useRef<HTMLFormElement>(null); const emAndamentoRef = useRef(false); const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -38,6 +39,8 @@ export function AvaliacaoFormV2({ alunoId, alunoNome, alunoAtivo, referencia, da
       {mostrarResumo ? <div role="alert" className="rounded-lg border border-current p-4 text-sm"><p className="font-semibold">Corrija os itens abaixo:</p><ul className="list-disc pl-5">{mensagem ? <li>{mensagem}</li> : null}{entradasErro.map(([campo, erro]) => <li key={campo}>{erro}</li>)}</ul></div> : null}
       {estado.status === "pendente-integracao" ? <div role="status" className="rounded-lg border p-4"><p className="font-semibold">Preenchimento validado</p><p className="mt-1 text-sm">{estado.mensagem}</p></div> : null}
       <fieldset className="rounded-lg border p-4"><legend className="px-2 font-semibold">Data e observações</legend><div className="grid gap-4"><CampoFormulario id="dataAvaliacao" label="Data da avaliação" type="date" obrigatorio defaultValue={valores.dataAvaliacao} erro={erros.dataAvaliacao} /><div><label htmlFor="observacoes" className="text-sm font-medium">Observações</label><textarea id="observacoes" name="observacoes" defaultValue={valores.observacoes} className="mt-1 min-h-24 w-full rounded-lg border px-3 py-2" /></div></div></fieldset>
+      <AmplitudeFieldset referencia={referencia} erros={erros} valores={valores.campos} />
+      <SaltosFieldset referencia={referencia} erros={erros} valores={valores.campos} />
       <div className="flex flex-col-reverse gap-2 sm:flex-row"><Button type="submit" disabled={pendente} className="h-11 sm:h-9">{pendente ? "Validando…" : "Validar preenchimento"}</Button><Link href={`/alunos/${alunoId}`} className={cn(buttonVariants({ variant: "outline" }), "h-11 sm:h-9")}>Cancelar</Link></div>
     </form></main>;
 }
