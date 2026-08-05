@@ -7,9 +7,16 @@ revisão arquitetural aprovada.
 > **Atualizado em 05/08/2026** para refletir a mudança de domínio da avaliação.
 > **Leia a subseção 0.5 antes de implementar qualquer coisa ligada a avaliação** —
 > ela manda sobre os trechos deste documento que descrevem o formulário, e marca
-> como **modelo v1** o que ficou superado. O contrato v2 **ainda não está
-> fechado**: onde este documento diz "a definir pelo contrato v2", não há decisão
-> a inferir.
+> como **modelo v1** o que ficou superado.
+>
+> **Segunda atualização no mesmo dia:** o contrato v2 **foi fechado** e o backend
+> migrou. Onde este documento disser "a definir pelo contrato v2", a resposta já
+> existe em [`api.md`](api.md) — não inferir daqui.
+>
+> ⚠️ **A curva força-velocidade saiu do produto** (decisão de 05/08/2026). Todo
+> trecho deste documento que fale de curva, `V0`/`F0`, `r²`, perfil ou score
+> descreve algo que **não existe mais** na API. `src/lib/calculos.ts` foi
+> apagado. Os pontos afetados estão marcados com ⚠️ ao longo do texto.
 
 Fontes de verdade complementares:
 
@@ -137,28 +144,40 @@ frontend (R1).
 | --- | --- |
 | `feat/evaluation-form` (E5 v1, `87e7336`) | **congelada e não mergeada.** Implementa o modelo v1. **Não é fonte de verdade** e não deve ser mergeada |
 | [`evaluation-model-v2-proposal.md`](evaluation-model-v2-proposal.md) | **proposta em revisão.** Não é contrato. Marca cada afirmação como `[CLIENTE]`, `[CÓDIGO]`, `[PROPOSTA]`, `[DÚVIDA]` ou `[BLOQUEIO]` — respeitar essas marcas ao ler |
-| `docs/api.md` | **ainda descreve o modelo v1** (`testes[]` com `tentativas[]`, `ordem`, `repeticoes`). Continua sendo o contrato vigente do backend até ser atualizado |
-| Backend, Prisma, seed | **inalterados.** Continuam no modelo v1 |
+| `docs/api.md` | ~~ainda descreve o modelo v1~~ → **atualizado em 05/08/2026.** Descreve o v2 e é o contrato vigente |
+| Backend, Prisma, seed | ~~inalterados~~ → **migrados para o v2 em 05/08/2026** |
 
-**Proibição explícita, enquanto o contrato v2 não estiver escrito em
-`docs/api.md`:** não implementar a **E5** nem a **E6**. Vale para código novo e
+> ### ✅ Atualização de 05/08/2026 — o contrato v2 está fechado
+>
+> O backend publicou o v2 em `docs/api.md` e em `src/lib/schemas.ts`. **A
+> proibição abaixo caiu por ter sido cumprida a condição dela**, não por ter
+> sido revogada: o contrato está escrito.
+>
+> A forma proposta pelo frontend foi **aceita sem alteração** — mesmas chaves,
+> mesma nullabilidade, mesmos paths de erro. Consequência direta:
+> `src/features/avaliacoes/contrato-v2.ts` cumpriu seu prazo de vida e deve ser
+> apagado em favor de `@/lib/schemas` (`e5-v2-implementation-spec.md` §13.5).
+
+~~**Proibição explícita, enquanto o contrato v2 não estiver escrito em
+`docs/api.md`:** não implementar a **E5** nem a **E6**.~~ Vale para código novo e
 para "adaptar o que já existe". A justificativa está em
 `evaluation-model-v2-proposal.md` §16: hoje o custo de esperar é descartar uma
 branch não publicada; construir sobre um contrato adivinhado faz descartar duas.
 
 **Decisões ainda bloqueantes** (detalhe na seção 12):
 
-| # | Bloqueio | Quem responde |
-| --- | --- | --- |
-| B6 | Nomes **e unidades** dos quatro saltos adicionais | cliente → backend |
-| B7 | `tempo` (s) versus velocidade **VMP** (m/s) como campo digitado | cliente |
-| B8 | Granularidade dos resultados de velocidade (um par carga/tempo por exercício, ou mais) | cliente |
-| B9 | A curva carga-velocidade continua no produto com ≤2 pontos? | cliente |
-| B10 | DTO final e **paths literais** de `issues[].field` no v2 | backend |
+| # | Bloqueio | Quem responde | Situação em 05/08/2026 |
+| --- | --- | --- | --- |
+| B6 | Nomes **e unidades** dos quatro saltos adicionais | cliente → backend | **destravado, sem resposta.** O v2 não transporta unidade, então isto deixou de bloquear o contrato. No catálogo vem `unidade: null`; nome, sigla e código são provisórios e reversíveis |
+| B7 | `tempo` (s) versus velocidade **VMP** (m/s) como campo digitado | cliente | **decidido: fica `tempoSegundos`**, para a demo. Pode mudar depois — a pergunta segue registrada em `api.md` |
+| B8 | Granularidade dos resultados de velocidade | cliente | **decidido: um par carga/tempo por exercício**, dois exercícios |
+| B9 | A curva carga-velocidade continua no produto com ≤2 pontos? | cliente | **decidido: não.** Curva, ajuste, perfil e score **saíram do relatório**. Ver a nota de obsolescência na §2.5 e no R2 |
+| B10 | DTO final e **paths literais** de `issues[].field` no v2 | backend | **resolvido.** Os 19 paths estão listados em `api.md`; os dois do `superRefine` carga↔tempo foram verificados contra o servidor real, não deduzidos |
 
-O que **não** está bloqueado: E7 e E8 seguem seus próprios pré-requisitos, e as
-telas de leitura já entregues (E0–E3) continuam válidas enquanto o backend não
-mudar a serialização.
+O que **não** está bloqueado: E7 e E8 seguem seus próprios pré-requisitos. ⚠️ As
+telas de leitura já entregues (E0–E3) **deixaram de ser válidas**: o backend
+mudou a serialização em 05/08/2026, e o `npm run typecheck` acusa nelas. Era o
+efeito previsto do risco R3 — a lista do que ajustar está na PR #15.
 
 ---
 
@@ -271,10 +290,15 @@ importados e executados no cliente; os tipos de `src/lib/medidas.ts` e o catálo
 ### 2.5 Separação entre domínio e interface
 
 O componente não conhece regra. Ele recebe valores prontos e decide **como
-mostrar**. Consequência prática, e é a que mais importa: como curva, score e
-textos são declaradamente provisórios (`src/lib/calculos.ts:1-10`,
-`src/lib/textos.ts:1-8`), nenhum componente pode derivar, recalcular ou assumir
-faixa de valor — senão trocar a fórmula vira retrabalho de interface.
+mostrar**. Consequência prática, e é a que mais importa: como os textos são
+declaradamente provisórios (`src/lib/textos.ts:1-8`), nenhum componente pode
+derivar, recalcular ou assumir faixa de valor — senão trocar a fórmula vira
+retrabalho de interface.
+
+> ⚠️ **Obsoleto em 05/08/2026 na parte de curva e score.** Estes não são mais
+> "provisórios": **saíram da API**, junto com `src/lib/calculos.ts`. A regra
+> acima continua valendo para os textos — e continua valendo, com mais força
+> ainda, como proibição de o front recalcular a curva por conta própria.
 
 ### 2.6 Filosofia feature-first
 
@@ -706,8 +730,10 @@ do professor (`planilha-atual.md:132-135`).
 **Catálogo** (`src/lib/medidas.ts`): `DefinicaoMedida`, `ChaveMedida`, `Lado`, e em
 runtime `MEDIDAS`, `siglaComLado`, `rotuloComLado`, `SUFIXO_LADO`.
 
-**Relatório**: `MedidaDetalhada` (`src/lib/avaliacoes.ts:68`), `PontoCurva` e
-`AjusteCurva` (`src/lib/calculos.ts:47,54`), `TextosRelatorio` (`src/lib/textos.ts:16`).
+**Relatório**: `MedidaDetalhada` (`src/lib/avaliacoes.ts`), `TextosRelatorio`
+(`src/lib/textos.ts:16`).
+⚠️ ~~`PontoCurva` e `AjusteCurva` (`src/lib/calculos.ts:47,54`)~~ — **não existem
+mais** desde 05/08/2026; o módulo inteiro foi apagado.
 
 **Saída de avaliação**: derivada de `ReturnType<typeof serializarAvaliacao>`
 (`src/lib/avaliacoes.ts:158`). É `import type` — custo zero em runtime — e faz o
@@ -720,7 +746,7 @@ runtime `MEDIDAS`, `siglaComLado`, `rotuloComLado`, `SUFIXO_LADO`.
 | `@/lib/medidas` | tipo **e runtime** | funções e constantes puras, sem dependência externa |
 | `@/lib/schemas` | tipo **e runtime** | depende só de `zod` e de um `import type` |
 | `@/lib/avaliacoes` | **somente tipo** | puro, mas não há motivo de runtime no front |
-| `@/lib/calculos` | **somente tipo** | fórmulas são do backend (2.5) |
+| ~~`@/lib/calculos`~~ | ⚠️ **módulo apagado em 05/08/2026** | a curva saiu do produto; não há o que importar |
 | `@/lib/textos` | **somente tipo** | — |
 
 ### 7.3 Módulos proibidos
@@ -1005,8 +1031,8 @@ da resposta.
 - Avaliação sem testes renderiza sem quebrar: perfil "Dados insuficientes",
   score "Sem dados".
 - Aluno sem CMJ não quebra o resumo.
-- Rótulos com acentuação correta, inclusive `perfil` e `nivel` (o backend devolve
-  `"Orientado a forca"` — `src/lib/calculos.ts:127`).
+- ⚠️ ~~Rótulos com acentuação correta, inclusive `perfil` e `nivel`~~ —
+  **obsoleto em 05/08/2026**: `perfil` e `nivel` não são mais devolvidos.
 - `variacaoVsInicial` e `variacaoVsPico` rotulados em **cm**, não em %
   (são diferenças absolutas — `.../relatorio/route.ts:127-128`).
 - `periodo.totalAvaliacoes` **não** rotulado como "total de avaliações"
@@ -1280,6 +1306,12 @@ cobrindo vírgula, vazio, zero e 422 **por bloco**.
 corporal e distância de push-off** — campos que **não existem** em
 `prisma/schema.prisma`.
 
+> ⚠️ **Atualização de 05/08/2026 — o risco se materializou, e foi resolvido por
+> remoção.** Curva, ajuste, perfil e score saíram do relatório em vez de mudar
+> de formato: com o modelo v2 a curva caiu de 8 pontos para no máximo 2, e com 2
+> pontos `r²` é sempre 1 por construção. `src/lib/calculos.ts` foi apagado.
+> Sobra deste risco apenas a parte dos **textos**.
+
 *Agravado em 05/08/2026.* **A curva carga-velocidade pode perder validade no
 modelo v2.** Ela era montada com um ponto por tentativa (5 no seed, 8 na planilha
 real); com um resultado final por exercício sobram **no máximo 2 pontos**. Com
@@ -1427,10 +1459,14 @@ planilha real (`planilha-atual.md:54`) inclui `REL %` (percentual) e `EUR`/`RSI`
 (adimensionais). **Um valor em `%` ou adimensional é impossível de enviar hoje.**
 Cliente responde o quê; backend responde como o schema passa a expressar.
 
-**B7 — `tempo` (s) ou velocidade **VMP** (m/s)?** O contrato atual pede tempo e
-deriva velocidade com um deslocamento chutado de 0,5 m
-(`DESLOCAMENTO_POR_CODIGO`, `src/lib/calculos.ts:19-28`), enquanto `vbt.md` e a
-planilha registram que o professor **já tem a VMP do encoder**. Muda o campo, o
+**B7 — `tempo` (s) ou velocidade **VMP** (m/s)?** ⚠️ **Decidido em 05/08/2026:
+fica `tempoSegundos`, para a demo.** A derivação em m/s deixou de existir junto
+com a curva, então hoje o tempo é publicado como foi cronometrado, sem virar
+velocidade. A pergunta segue registrada em `api.md` caso o professor confirme
+que já tem a VMP do encoder.
+O contrato pedia tempo e derivava velocidade com um deslocamento chutado de 0,5 m
+(`DESLOCAMENTO_POR_CODIGO`, `src/lib/calculos.ts:19-28` — **arquivo apagado**),
+enquanto `vbt.md` e a planilha registram que o professor **já tem a VMP do encoder**. Muda o campo, o
 rótulo, a unidade e a validação. Ligada à dúvida 11 de `planilha-atual.md`.
 
 **B8 — Granularidade dos resultados de velocidade.** Um par carga/tempo por
