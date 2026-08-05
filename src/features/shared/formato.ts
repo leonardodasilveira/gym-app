@@ -76,3 +76,10 @@ const formatadorDataEmissao = new Intl.DateTimeFormat("pt-BR", {
 export function dataDeHojeFormatada(): string {
   return formatadorDataEmissao.format(new Date());
 }
+
+const formatadorIso = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" });
+
+export function hojeIsoSaoPaulo(): string {
+  const partes = Object.fromEntries(formatadorIso.formatToParts(new Date()).map((parte) => [parte.type, parte.value]));
+  return `${partes.year}-${partes.month}-${partes.day}`;
+}
