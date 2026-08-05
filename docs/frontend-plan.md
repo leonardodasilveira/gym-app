@@ -4,6 +4,13 @@ Referência oficial para todas as implementações de frontend do `gym-app`.
 Consolidado em **31/07/2026**, a partir da análise do código existente e da
 revisão arquitetural aprovada.
 
+> **Atualizado em 05/08/2026** para refletir a mudança de domínio da avaliação.
+> **Leia a subseção 0.5 antes de implementar qualquer coisa ligada a avaliação** —
+> ela manda sobre os trechos deste documento que descrevem o formulário, e marca
+> como **modelo v1** o que ficou superado. O contrato v2 **ainda não está
+> fechado**: onde este documento diz "a definir pelo contrato v2", não há decisão
+> a inferir.
+
 Fontes de verdade complementares:
 
 | Documento | Papel |
@@ -108,6 +115,51 @@ resolvida — cada uma é uma decisão nova, não uma retomada automática desta
    endpoint de `init` (ex.: inspecionando a requisição de um ambiente onde o CLI
    funcione), mantendo fidelidade em vez de improvisar valores.
 
+### 0.5 Mudança de domínio da avaliação — **modelo v2 em revisão**
+
+**Registrado em 05/08/2026, após descoberta com o cliente.** Esta subseção manda
+sobre qualquer trecho deste documento que descreva o formulário de avaliação.
+
+**O que o cliente confirmou.** O professor executa as tentativas **fora do
+sistema**, escolhe o melhor resultado e digita **apenas esse valor**. Não existem
+múltiplas tentativas, repetições nem ordem de tentativa a persistir. A avaliação
+passa a se apresentar em **três blocos**: **Amplitude**, **Salto** e
+**Velocidade**.
+
+**Consequência imediata:** o aplicativo deixa de ser um registrador de séries e
+passa a ser um registrador de **resultados finais**. Some a lista dinâmica de
+testes e tentativas — que era exatamente a parte de maior risco técnico do
+frontend (R1).
+
+**Estado dos artefatos:**
+
+| Artefato | Estado |
+| --- | --- |
+| `feat/evaluation-form` (E5 v1, `87e7336`) | **congelada e não mergeada.** Implementa o modelo v1. **Não é fonte de verdade** e não deve ser mergeada |
+| [`evaluation-model-v2-proposal.md`](evaluation-model-v2-proposal.md) | **proposta em revisão.** Não é contrato. Marca cada afirmação como `[CLIENTE]`, `[CÓDIGO]`, `[PROPOSTA]`, `[DÚVIDA]` ou `[BLOQUEIO]` — respeitar essas marcas ao ler |
+| `docs/api.md` | **ainda descreve o modelo v1** (`testes[]` com `tentativas[]`, `ordem`, `repeticoes`). Continua sendo o contrato vigente do backend até ser atualizado |
+| Backend, Prisma, seed | **inalterados.** Continuam no modelo v1 |
+
+**Proibição explícita, enquanto o contrato v2 não estiver escrito em
+`docs/api.md`:** não implementar a **E5** nem a **E6**. Vale para código novo e
+para "adaptar o que já existe". A justificativa está em
+`evaluation-model-v2-proposal.md` §16: hoje o custo de esperar é descartar uma
+branch não publicada; construir sobre um contrato adivinhado faz descartar duas.
+
+**Decisões ainda bloqueantes** (detalhe na seção 12):
+
+| # | Bloqueio | Quem responde |
+| --- | --- | --- |
+| B6 | Nomes **e unidades** dos quatro saltos adicionais | cliente → backend |
+| B7 | `tempo` (s) versus velocidade **VMP** (m/s) como campo digitado | cliente |
+| B8 | Granularidade dos resultados de velocidade (um par carga/tempo por exercício, ou mais) | cliente |
+| B9 | A curva carga-velocidade continua no produto com ≤2 pontos? | cliente |
+| B10 | DTO final e **paths literais** de `issues[].field` no v2 | backend |
+
+O que **não** está bloqueado: E7 e E8 seguem seus próprios pré-requisitos, e as
+telas de leitura já entregues (E0–E3) continuam válidas enquanto o backend não
+mudar a serialização.
+
 ---
 
 ## 1. Objetivo do frontend
@@ -122,6 +174,12 @@ CT E Perform. Cinco fluxos:
 3. Visualizar a evolução do aluno entre avaliações.
 4. Gerar relatório com período padrão de 8 semanas, editável.
 5. Preparar o relatório para compartilhamento por WhatsApp ou e-mail.
+
+Os cinco fluxos continuam valendo. **O que mudou é o significado do fluxo 2**
+(05/08/2026, ver 0.5): "registrar avaliações" significa registrar o **resultado
+final que o professor já escolheu**, não as tentativas brutas. As tentativas
+acontecem fora do sistema; o aplicativo nunca as vê. Isso não muda o escopo —
+muda a unidade de dado que o formulário coleta.
 
 O produto **é o relatório**. O registro de dados é o meio — ver
 `planilha-atual.md`, seção "A descoberta principal". Isso define a prioridade de
@@ -377,9 +435,18 @@ Três níveis, distintos de propósito:
 
 | Nível | Mecanismo | Uso |
 | --- | --- | --- |
-| **Esperado** | valor de retorno da ação + `useActionState` | 422 de validação, 409 de duplicata, 404 em mutação |
+| **Esperado** | valor de retorno da ação + `useActionState` | 422 de validação, 409 de conflito, 404 em mutação |
 | **Inesperado em render** | `error.tsx` do segmento | API fora do ar, resposta malformada |
 | **Ausência** | `notFound()` + `not-found.tsx` | Aluno ou avaliação que não existe |
+
+> **Sobre o `409` (05/08/2026).** A regra acima é genérica e vale para qualquer
+> domínio que venha a ter conflito de unicidade. O que **não** vale mais é
+> pressupor que o formulário de avaliação precisa lidar com ele: o `409` por
+> `codigo` de teste / `ordem` de tentativa pertence ao **contrato v1** da
+> avaliação. No modelo v2 proposto, as chaves fixas tornam essa duplicidade
+> **estruturalmente impossível** de construir, então ela some do fluxo (6.6).
+> Enquanto o contrato v1 existir, o backend atual **ainda pode responder `409`** —
+> ver 5.7 e R6.
 
 Regras invioláveis:
 
@@ -452,7 +519,7 @@ Lista fechada para o MVP — qualquer adição precisa de justificativa:
 | --- | --- |
 | `error.tsx` / `global-error.tsx` | exigência do framework |
 | Formulário de aluno | `useActionState` |
-| Formulário de avaliação | `useActionState` + lista dinâmica de linhas |
+| Formulário de avaliação | `useActionState` + rascunho local + interação do formulário fixo |
 | Busca de alunos | filtro no cliente com normalização de acento |
 | `ConfirmDialog` | interação |
 | Barra de compartilhamento | `window.print`, `mailto`, `wa.me` |
@@ -469,7 +536,9 @@ Lista fechada para o MVP — qualquer adição precisa de justificativa:
 - **Catálogo de medidas:** importado de `@/lib/medidas` (módulo puro, estático).
   Elimina uma chamada e um estado de loading, e dá tipagem literal. `GET /medidas`
   permanece o contrato oficial — se o catálogo virar dinâmico, muda-se um arquivo.
-  Decisão a confirmar com o backend (seção 12, D6).
+  **Confirmado pelo backend** (`api.md:364`): o módulo não tem nenhum import, é
+  catálogo estático e fonte única da verdade, então o front pode reutilizar
+  `MEDIDAS` à vontade. Ver "Decisões resolvidas" na seção 12, D6.
 
 ### 5.5 Revalidação
 
@@ -496,29 +565,47 @@ Ver 4.7. Mapeamento de referência (`src/lib/http.ts:45-77`):
 | 422 | Zod | Mapear `issues[].field` para os campos (6.4) |
 | 500 | não tratado | Erro genérico + nova tentativa |
 
+> O `409` era alcançável no fluxo de avaliação por causa das constraints de
+> unicidade do modelo v1. **No modelo v2 ele sai desse fluxo** (6.6) — mas a
+> linha permanece na tabela porque o backend ainda está no v1, e porque o status
+> continua existindo no mapeamento geral.
+
 ---
 
 ## 6. Estratégia de formulários
 
+> **Leia 0.5 antes desta seção.** A descoberta de 05/08/2026 tornou **superadas**
+> as afirmações desta seção que descreviam arrays dinâmicos de teste e tentativa.
+> Elas ficam registradas como **modelo v1**, com a marca explícita, porque o
+> backend ainda opera nesse modelo. Os princípios gerais — `FormData`, inputs
+> não-controlados, `useActionState`, Zod compartilhado, `null` versus zero,
+> decimal pt-BR, rascunho local, foco e mapeamento de 422 — **continuam válidos
+> sem alteração**.
+
 ### 6.1 FormData
 
-Todo formulário submete via `FormData`. Extração no submit
-(`Object.fromEntries` para os campos simples, leitura indexada para os arrays de
-teste e tentativa), sem espelhar cada campo em estado.
+Todo formulário submete via `FormData`, sem espelhar cada campo em estado.
+Extração no submit por `Object.fromEntries` para os campos simples.
+
+> **Modelo v1 — superado.** A versão anterior previa também "leitura indexada
+> para os arrays de teste e tentativa". Não há mais arrays: o formulário v2 tem
+> um conjunto **fixo** de campos, conhecido em tempo de compilação (0.5).
+> A forma exata dos `name` fica **a definir pelo contrato v2**.
 
 ### 6.2 Formulários não-controlados
 
-Inputs com `defaultValue`. O estado React guarda **apenas a identidade das
-linhas** (ids de teste e de tentativa); os valores vivem no DOM.
+Inputs com `defaultValue`; os valores vivem no DOM, não em estado React.
 
-Consequência que motivou a decisão: digitar **não re-renderiza nada**. Um
-formulário controlado re-renderizaria o array inteiro de testes a cada tecla — no
-formulário mais longo do sistema, preenchido em tablet.
+Consequência que motivou a decisão, e que continua valendo: digitar **não
+re-renderiza nada**. Um formulário controlado re-renderizaria o formulário
+inteiro a cada tecla — no formulário mais longo do sistema, preenchido em tablet.
 
-Ressalva conhecida: input não-controlado embaralha valores se as linhas forem
-reordenadas. **Não é problema aqui:** `ordem` é campo explícito do DTO
-(`src/lib/schemas.ts:51`), então não existe UI de arrastar-e-soltar. Adicionar e
-remover com chaves estáveis por id é seguro.
+> **Modelo v1 — superado.** A versão anterior dizia que "o estado React guarda
+> apenas a identidade das linhas (ids de teste e de tentativa)", e trazia uma
+> ressalva sobre reordenação apoiada em `ordem` ser campo explícito do DTO
+> (`src/lib/schemas.ts:51`). No modelo v2 **não há linhas, não há identidade de
+> linha e não há `ordem`**: o estado React do formulário de avaliação passa a
+> guardar apenas o que o rascunho e o `useActionState` exigem.
 
 ### 6.3 Validação compartilhada com Zod
 
@@ -531,22 +618,38 @@ remover com chaves estáveis por id é seguro.
 
 Regras que só o front pode garantir:
 
-- Enviar **as 5 chaves de `medidas` sempre**, com `null` nos campos vazios.
+- Enviar **todas as chaves de `medidas` sempre**, com `null` nos campos vazios.
+  São **5 no modelo v1**; o número no v2 fica **a definir pelo contrato v2**
+  (a proposta prevê 9, mas não é contrato — ver 0.5).
 - **Campo vazio nunca vira `0`.** `planilha-atual.md:139-141` registra
   "zero significando não medido" como bug herdado da planilha. A interface
-  combate isso ativamente, inclusive no texto de apoio.
-- Teste adicionado precisa de ao menos uma tentativa antes do envio.
+  combate isso ativamente, inclusive no texto de apoio. **Esta é a regra mais
+  importante da seção e não muda no v2.**
+
+> **Modelo v1 — superado.** A regra "teste adicionado precisa de ao menos uma
+> tentativa antes do envio" existia por causa de `testeSchema.tentativas.min(1)`
+> (`src/lib/schemas.ts:60`). No v2 não há testes nem tentativas. A regra de
+> consistência que a substitui — se existir — fica **a definir pelo contrato
+> v2**; a proposta sugere dependência mútua entre carga e tempo, mas isso é
+> proposta, não contrato.
 
 ### 6.4 Tratamento de 422
 
 A resposta traz `issues: [{ field, message }]`, onde `field` é o caminho pontilhado
-do Zod (`src/lib/http.ts:55`): `medidas.cmj.valor`,
-`testes.0.tentativas.1.carga.valor`.
+do Zod (`src/lib/http.ts:55`).
 
-Os atributos `name` dos inputs seguem **exatamente esse formato**, de modo que o
-mapeamento erro→campo é direto. Comportamento exigido: mensagem sob o campo,
-foco no primeiro campo com erro, e resumo com `aria-live` no topo quando houver
-mais de um.
+O mecanismo continua sendo o mesmo, e é o núcleo do formulário: os atributos
+`name` dos inputs seguem **exatamente** o formato do `field`, de modo que o
+mapeamento erro→campo é direto, sem tabela de tradução. Comportamento exigido:
+mensagem sob o campo, foco no primeiro campo com erro, e resumo com `aria-live`
+no topo quando houver mais de um.
+
+**Os paths concretos ficam a definir pelo contrato v2** (B10, seção 12). No
+modelo v1 eram `medidas.cmj.valor` e `testes.0.tentativas.1.carga.valor` — o
+segundo formato, com índices aninhados, **deixa de existir**. Nenhum path novo
+deve ser inventado ou inferido: o backend precisa publicar a lista literal antes
+de a E5 v2 começar, porque errar o path quebra o mapeamento de erro, o foco no
+primeiro erro e o resumo de uma vez só.
 
 ### 6.5 Rascunhos locais
 
@@ -562,15 +665,19 @@ silêncio.
 
 ### 6.6 Prevenção de duplicidades
 
-`api.md:137` descreve unicidade de `codigo` de teste e de `ordem` de tentativa
-como regra de validação, mas **o Zod não valida isso** (`src/lib/schemas.ts:57-71`):
-é constraint de banco (`prisma/schema.prisma:71,89`) e a violação retorna **409
-genérico, sem indicar campo**.
+> **Modelo v1 — superado para a avaliação.** `api.md:175-178` descreve unicidade
+> de `codigo` de teste e de `ordem` de tentativa como regra de validação, mas
+> **o Zod não valida isso** (`src/lib/schemas.ts:57-71`): é constraint de banco
+> (`prisma/schema.prisma:71,89`) e a violação retorna **409 genérico, sem indicar
+> campo**. Por isso o front do modelo v1 impedia antes de enviar.
+>
+> No modelo v2 **a duplicidade deixa de ser construível**: com um conjunto fixo
+> de campos não há código repetido nem ordem a colidir, e o `409` sai do fluxo de
+> avaliação. Esta regra continua registrada porque **o backend ainda está no
+> modelo v1** — enquanto `POST /avaliacoes` aceitar `testes[]`, a divergência
+> permanece real (R6). Ela some quando o contrato v2 for publicado.
 
-Portanto o front **impede antes de enviar**: código de teste duplicado e ordem de
-tentativa duplicada são bloqueados com mensagem no campo.
-
-Também: `POST /alunos` **aceita nome duplicado** (não há `@@unique` em
+Continua valendo, e é independente do modelo: `POST /alunos` **aceita nome duplicado** (não há `@@unique` em
 `Aluno.nome`). O front **avisa** ("já existe um aluno com esse nome") sem
 bloquear — homônimo é legítimo, e numeração/duplicidade manual já é dor conhecida
 do professor (`planilha-atual.md:132-135`).
@@ -583,6 +690,18 @@ do professor (`planilha-atual.md:132-135`).
 
 **Entrada** (`src/lib/schemas.ts:100-105`): `CriarAvaliacaoDTO`, `MedidasDTO`,
 `TesteDTO`, `TentativaDTO`, `CriarAlunoDTO`, `AtualizarAlunoDTO`.
+
+> **`TesteDTO` e `TentativaDTO` são contratos do modelo v1.** Continuam
+> exportados e continuam corretos para o backend de hoje — por isso ficam
+> documentados aqui, e não removidos. Mas **nenhuma implementação nova da
+> avaliação deve consumi-los**: eles carregam `ordem`, `repeticoes` e a lista de
+> tentativas, que o domínio descartou em 05/08/2026 (0.5). O mesmo vale para
+> `CriarAvaliacaoDTO` na parte de `testes[]`.
+>
+> Os tipos v2 **só passam a existir depois** de o backend atualizar
+> `src/lib/schemas.ts` e publicar o contrato em `docs/api.md`. Até lá não há tipo
+> v2 para importar, e declarar um à mão no front seria criar exatamente a
+> declaração paralela que a seção 7 existe para evitar.
 
 **Catálogo** (`src/lib/medidas.ts`): `DefinicaoMedida`, `ChaveMedida`, `Lado`, e em
 runtime `MEDIDAS`, `siglaComLado`, `rotuloComLado`, `SUFIXO_LADO`.
@@ -637,8 +756,17 @@ Em troca, a divergência é detectada em tempo de compilação em vez de virar
 Mitigação: **um `tipos.ts` por feature**. A superfície de acoplamento é um arquivo
 por domínio, não trinta componentes. Se o backend mudar, um arquivo se move.
 
-Pedido registrado ao backend: exportar um tipo `RelatorioResponse` — é o único
-ponto onde o front precisa declarar o envelope à mão (seção 12, D7).
+**Resolvido pelo backend (D7).** `RelatorioResponse` já é exportado, derivado de
+`ReturnType<typeof montarRelatorio>` em `src/lib/relatorio.ts` (`api.md:302-311`),
+junto com `PontoCmj` e `ResumoCmjRelatorio`. O front deixa de declarar o envelope
+à mão: `import type { RelatorioResponse } from "@/lib/relatorio"`. Na mesma
+rodada saíram `AvaliacaoResponse`, `TesteResponse` e `TentativaResponse` de
+`@/lib/avaliacoes` (`api.md:366`), dispensando o
+`ReturnType<typeof serializarAvaliacao>` de `features/alunos/tipos.ts:35`.
+
+> `TesteResponse` e `TentativaResponse` são **saída do modelo v1**, e valem a
+> mesma ressalva de 7.1: existem, estão corretos para o backend de hoje, e não
+> devem ser base de implementação nova da avaliação.
 
 ---
 
@@ -934,50 +1062,106 @@ com `pending`; mapeamento de 422.
 
 ---
 
-### E5 — Formulário de avaliação
+### E5 — Formulário de avaliação v2 (**bloqueada**)
 
-**Objetivo.** Entregar o fluxo central de escrita. Etapa maior, mas coesa — o
-formulário tem um único submit e um único modelo de dados; dividi-lo produziria
-uma entrega não revisável.
+> **Status em 05/08/2026: bloqueada.** Esta descrição substitui integralmente a
+> anterior, escrita sobre o modelo v1 (array dinâmico de testes e tentativas).
+> A etapa **não pode ser iniciada** enquanto o contrato v2 não estiver publicado
+> em `docs/api.md` — ver 0.5.
+>
+> **`feat/evaluation-form` (`87e7336`) é uma implementação do modelo v1, não
+> mergeada, e não deve ser usada como fonte de verdade nem como base de
+> refatoração cega.** Serve como referência: o parser decimal, o tratamento de
+> `null` versus zero, o padrão de `useActionState`, o rascunho e o mapeamento de
+> 422 são reaproveitáveis quase sem mudança.
 
-**Entregáveis.** `/alunos/[id]/avaliacoes/nova`; medidas geradas a partir do
-catálogo; campos decimais em pt-BR; array dinâmico de testes e tentativas;
-prevenção de duplicidade; rascunho local; valor da avaliação anterior como
-referência somente-leitura ao lado de cada campo; criação de aluno inline;
-submit com mapeamento de 422.
+**Objetivo.** Entregar o fluxo central de escrita conforme o novo modelo aprovado
+pelo cliente.
 
-**Critérios de aceite.**
-- Todos os 9 campos de medida aceitam vazio, e o payload envia `null` — nunca `0`
-  nem `""`.
-- `"11,5"` e `"11.5"` produzem ambos `11.5`.
-- As 5 chaves de `medidas` estão sempre presentes no payload.
-- Digitar em qualquer campo **não** re-renderiza o array de testes.
-- Adicionar/remover teste e tentativa preserva os valores já digitados.
-- Código de teste duplicado e ordem duplicada são barrados antes do envio.
-- Teste sem tentativa é barrado.
-- Um 422 forçado marca exatamente o campo de `issues[].field`, com foco no primeiro.
-- Fechar e reabrir a página oferece o rascunho, com opção de descartar.
-- Data padrão é hoje, sem deslocamento de fuso.
-- Usável em tablet: alvos de toque grandes, teclado numérico.
+**Modelo confirmado pelo cliente.** Três blocos:
 
-**Dependências.** E4. **Atenção:** se a resposta de B2 confirmar a hipótese
-Samozino, entram campos novos (massa corporal, altura de salto) — ver seção 11, R2.
+| Bloco | Conteúdo |
+| --- | --- |
+| **Amplitude** | TOR DIR/ESQ, QUA DIR/ESQ, IQT DIR/ESQ, SLB DIR/ESQ |
+| **Salto** | CMJ + quatro resultados adicionais, **ainda sem contrato final** (nome e unidade — B6) |
+| **Velocidade** | Squat Jump e Agachamento |
+
+- O sistema registra **resultados finais**, não tentativas brutas: o professor
+  executa fora do sistema e digita o valor que já escolheu.
+- **Sem repetições, sem ordem, sem múltiplas tentativas.**
+
+**Requisitos preservados** — valem no v2 exatamente como estavam:
+
+- `null` versus zero, com campo vazio produzindo `null` e nunca `0` nem `""`.
+- Decimal em pt-BR: `"11,5"` e `"11.5"` produzem ambos `11.5`; sem
+  `<input type="number">` nos campos decimais.
+- Rascunho local por aluno, com aviso ao retomar e opção de descartar (6.5).
+- Valor da avaliação anterior como referência **somente-leitura**, rotulado com a
+  data de origem e nunca enviado no payload.
+- `useActionState` com `pending`, e valores ecoados no estado da ação (o React 19
+  reseta o formulário a cada submit).
+- Mapeamento de 422 por `issues[].field` idêntico ao `name` do input, com foco no
+  primeiro campo inválido e resumo `aria-live`.
+- **Tablet-first**: alvos de toque grandes, teclado numérico.
+- Aluno **fixado pela rota** (`/alunos/[id]/avaliacoes/nova`).
+- Retorno à ficha do aluno após sucesso — **sujeito à spec final**.
+- Data padrão é hoje em `America/Sao_Paulo`, sem deslocamento de fuso.
+
+**Removido do escopo** — era do modelo v1 e não existe mais:
+
+- Lista dinâmica de testes e tentativas.
+- Adicionar/remover teste; adicionar/remover tentativa.
+- Prevenção de código de teste duplicado.
+- Prevenção de ordem de tentativa duplicada.
+- Barrar teste sem tentativa.
+- Criação de aluno inline (já havia sido removida na spec da E5 v1: a rota fixa o
+  aluno pelo path, e um modal perderia o formulário preenchido).
+
+**Dependências obrigatórias.** Todas precisam estar resolvidas **antes** de a
+etapa começar:
+
+1. **Cliente responde os bloqueios do modelo v2** — em especial B6 (nomes e
+   unidades dos quatro saltos), B7 (tempo versus VMP), B8 (granularidade da
+   velocidade) e B9 (futuro da curva). Ver
+   [`evaluation-model-v2-proposal.md`](evaluation-model-v2-proposal.md) §15.
+2. **Backend publica o contrato final em `docs/api.md`** — DTO, unidades,
+   nullabilidade e regras de consistência.
+3. **Prisma, schemas, serializadores, cálculos e seed ajustados** ao v2 e
+   mergeados. Enquanto `serializarAvaliacao` emitir `tentativas[]`, o tipo do
+   front derivado dele descreve o modelo antigo.
+4. **Paths exatos de `issues[].field` documentados**, literalmente. É o insumo
+   sem o qual o `name` dos inputs não pode ser escrito (6.4, B10).
+5. **Decisão sobre relatório e curva** (B9): se as seções dependentes da curva
+   saírem do produto, muda o que a E5 precisa coletar.
+
+Além disso, E4 continua sendo pré-requisito técnico — o padrão de formulário
+provado lá é a base deste.
 
 ---
 
-### E6 — Detalhe da avaliação
+### E6 — Detalhe da avaliação (**bloqueada pela E5 v2**)
 
 **Objetivo.** Fechar o ciclo de escrita e provar o round-trip do contrato.
 
-**Entregáveis.** `/avaliacoes/[id]` com medidas em tabela (siglas do professor),
-testes e tentativas, exclusão com confirmação, atalho para o relatório.
+> **Status em 05/08/2026: bloqueada.** Depende da E5 v2, que depende do contrato
+> final (0.5). Como a tela **ainda não existe**, ela nasce direto no modelo v2 e
+> **não há retrabalho** — desde que não seja começada antes do contrato.
+
+**Entregáveis.** `/avaliacoes/[id]` com as siglas do professor: medidas de
+amplitude, resultados de salto e resultados de velocidade **conforme o contrato
+final**; exclusão com confirmação; atalho para o relatório.
+
+A composição exata do bloco de velocidade fica **a definir pelo contrato v2** —
+não assumir carga + tempo nem carga + VMP como definitivo enquanto B7 e B8 não
+forem respondidos.
 
 **Critérios de aceite.**
 - O que foi digitado na E5 aparece idêntico.
-- Medidas não medidas como "—".
+- Medidas não medidas como "—", nunca "0".
+- Unidades exibidas vêm do catálogo, não escritas à mão na tela.
 - Excluir pede confirmação e volta para a ficha do aluno, com a lista atualizada.
 
-**Dependências.** E5.
+**Dependências.** E5 v2 e o contrato final.
 
 ---
 
@@ -995,7 +1179,23 @@ URL); botão de impressão/PDF; compartilhamento por WhatsApp (`wa.me`) e e-mail
 - WhatsApp e e-mail abrem preenchidos.
 - Nenhum dado pessoal sai para serviço externo sem ação explícita do usuário.
 
-**Dependências.** **B1 e B3** (seção 12). Isolada de propósito no fim por isso.
+**Dependências.** **B3** (seção 12). Isolada de propósito no fim por isso.
+
+> **B1 saiu das dependências em 05/08/2026.** O backend implementou
+> `?semanas=` em `GET /avaliacoes/:id/relatorio` (`api.md:221-241`;
+> `relatorioQuerySchema`, `src/lib/schemas.ts:135-142`). O que **permanece aberto
+> nesta etapa é de UX, não de contrato**: como rotular a janela aplicada usando
+> `periodo.semanas` (que vem `null` no histórico inteiro), como deixar explícito
+> que o recorte afeta `historicoCmj`, `resumoCmj` e `periodo` mas **não** `curva`
+> nem `score`, e que `periodo.de`/`ate` são os extremos do dado existente, não as
+> bordas da janela pedida.
+
+> **Registrado em 05/08/2026.** Os objetivos e entregáveis desta etapa
+> **permanecem**. Mas se a resposta de **B9** retirar do produto as seções do
+> relatório que dependem da curva carga-velocidade, **a E7 precisa ser
+> reavaliada**: o que se compartilha e o que a janela de período recorta mudam
+> junto com a estrutura do relatório. Não é bloqueio novo — é um gatilho de
+> revisão, a checar quando B9 for respondida.
 
 ---
 
@@ -1014,6 +1214,9 @@ URL); botão de impressão/PDF; compartilhamento por WhatsApp (`wa.me`) e e-mail
 - Todos os estados vazio/erro/loading revisados com o vocabulário do professor.
 
 **Dependências.** E0–E7.
+
+> **Registrado em 05/08/2026.** A mudança de domínio **não afeta esta etapa**.
+> Ela é revisão transversal de qualidade, agnóstica ao formato do dado.
 
 ---
 
@@ -1047,12 +1250,27 @@ URL); botão de impressão/PDF; compartilhamento por WhatsApp (`wa.me`) e e-mail
 
 ### R1 — Formulário de avaliação · probabilidade **alta**
 
-*Causa.* Array dinâmico, decimais pt-BR, distinção vazio/zero, mapeamento de 422
-aninhado e prevenção de duplicata, tudo num artefato só.
-*Consequência.* O fluxo central fica inutilizável ou corrompe dado.
-*Mitigação.* Não-controlado + `FormData` (6.2); Zod compartilhado (6.3); rascunho
-local (6.5); `ordem` explícita dispensando reordenação; roteiro manual cobrindo
-vírgula, vazio, duplicata e 422.
+> **Reescrito em 05/08/2026.** A versão anterior apontava array dinâmico, índices
+> aninhados e prevenção de duplicata como causas dominantes. **Essas três
+> desapareceram com o modelo v2** (0.5) — e com elas a parte mais cara da etapa.
+> O risco não sumiu: ele **mudou de natureza**, de complexidade de interface para
+> incerteza de contrato.
+
+*Causa.* **Contrato de domínio ainda aberto** — DTO, nomes e paths de erro não
+estão fechados. Somam-se: **unidades heterogêneas** no bloco Salto (o schema atual
+só aceita `cm`, e a planilha real tem `%` e valores adimensionais); a distinção
+**`null` versus zero**, que é o defeito herdado que o produto existe para
+eliminar; os **paths de `issues[].field`**, de que depende todo o mapeamento de
+erro, o foco e o resumo; e o **rascunho local**, que precisa invalidar sozinho
+qualquer rascunho gravado no formato antigo.
+*Consequência.* O fluxo central fica inutilizável, corrompe dado ou é construído
+sobre um contrato adivinhado e descartado inteiro.
+*Mitigação.* **Não começar a E5 antes do contrato v2 publicado** — é a mitigação
+principal, e a única que ataca a causa. Depois disso: não-controlado + `FormData`
+(6.2); Zod compartilhado (6.3); rascunho local versionado, com descarte automático
+de versão anterior (6.5); paths literais obtidos do backend, nunca inferidos
+(6.4); unidades sempre vindas do catálogo, nunca escritas na tela; roteiro manual
+cobrindo vírgula, vazio, zero e 422 **por bloco**.
 
 ### R2 — Volatilidade do relatório · probabilidade **alta**
 
@@ -1061,17 +1279,33 @@ vírgula, vazio, duplicata e 422.
 `planilha-atual.md:112-121` levanta a hipótese Samozino, que exige **massa
 corporal e distância de push-off** — campos que **não existem** em
 `prisma/schema.prisma`.
-*Consequência.* Retrabalho no relatório e possivelmente no formulário da E5.
+
+*Agravado em 05/08/2026.* **A curva carga-velocidade pode perder validade no
+modelo v2.** Ela era montada com um ponto por tentativa (5 no seed, 8 na planilha
+real); com um resultado final por exercício sobram **no máximo 2 pontos**. Com
+exatamente dois pontos a reta passa por ambos, então **`r²` deixa de representar
+qualidade do ajuste** e vira constante — o "índice de qualidade da curva" para de
+ser informação. Isso é observação sobre o cálculo existente, **não uma proposta de
+fórmula nova**: a decisão sobre o futuro da curva é do cliente (B9).
+
+*Consequência.* Retrabalho no relatório e possivelmente no formulário da E5; e, se
+B9 retirar as seções dependentes da curva, parte do trabalho da E2/E3 vira código
+morto.
 *Mitigação.* Componentes de seção agnósticos ao valor (2.5); nenhuma derivação de
 número em componente; eixos sem escala fixa; aviso de provisoriedade vindo da
-resposta.
+resposta; tratar `ajuste: null` como caminho normal, não como exceção.
 
 ### R3 — Contrato de saída não tipado · probabilidade **média**
 
-*Causa.* O backend exporta tipos de entrada, não de saída.
+*Causa.* O backend exportava tipos de entrada, não de saída.
 *Consequência.* Backend muda a resposta, `typecheck` passa, tela quebra em runtime.
-*Mitigação.* Derivação por `ReturnType` (7.1); um `tipos.ts` por feature (7.5);
-pedido de `RelatorioResponse` (D7); regra de lint contra import server-only (7.4).
+*Mitigação.* **Em boa parte resolvida pelo backend** (D7, `api.md:366`):
+`RelatorioResponse`, `AvaliacaoResponse`, `TesteResponse` e `TentativaResponse`
+são exportados e derivados das funções que montam a resposta. Continuam valendo:
+um `tipos.ts` por feature (7.5) e a regra de lint contra import server-only (7.4).
+O risco **não fecha**: quando o contrato v2 chegar, os tipos de saída da avaliação
+mudam de forma — e é justamente essa derivação que fará o `typecheck` acusar, que
+é o comportamento desejado (ver `evaluation-model-v2-proposal.md` §10).
 
 ### R4 — URL base do `fetch` em Server Component · probabilidade **média**
 
@@ -1097,12 +1331,42 @@ Já mapeadas; o front convive com elas até serem resolvidas:
 
 | Divergência | Onde | Postura do front |
 | --- | --- | --- |
-| Doc sugere formulário de edição de avaliação; não há endpoint | `api.md:99-102` × `api/avaliacoes/[id]/route.ts` | Não oferecer edição (B5) |
-| Unicidade de `codigo`/`ordem` documentada como validação; é constraint de banco → 409 sem campo | `api.md:137` × `schemas.ts:57-71` | Prevenir no cliente (6.6) |
-| `periodo.totalAvaliacoes` conta só avaliações com CMJ | `api.md:147` × `relatorio/route.ts:71,111` | Não rotular como "total de avaliações" |
+| Unicidade de `codigo`/`ordem` documentada como validação; é constraint de banco → 409 sem campo | `api.md:175-178` × `schemas.ts:57-71` | **Superada para o v2** — ver abaixo |
+| `periodo.totalAvaliacoes` conta só avaliações com CMJ | `api.md:326-328` × `relatorio/route.ts:71,111` | Não rotular como "total de avaliações" |
 | `cargaMaximaKg` pode vir `null`, não documentado | `relatorio/route.ts:78` | Tratar como anulável |
-| `repeticoes.max(100)` não documentado | `schemas.ts:53` | Refletir no `max` do input |
+| `repeticoes.max(100)` não documentado | `schemas.ts:53` | **Superada para o v2** — ver abaixo |
 | `periodo`/`resumoCmj` vêm do histórico inteiro, não da avaliação relatada | `relatorio/route.ts:68-72,83` | Rotular com precisão; D2 |
+
+**Duas divergências ficaram superadas em 05/08/2026** (0.5), e a distinção
+importa:
+
+| Divergência | Como fica |
+| --- | --- |
+| Unicidade de `codigo`/`ordem` | **Deixa de ser preocupação futura do frontend.** No modelo v2 não há códigos repetíveis nem ordem, então a duplicidade é sintaticamente impossível e o `409` sai do fluxo de avaliação |
+| `repeticoes.max(100)` | **Sem sentido no modelo v2** — não existem repetições persistidas, logo não há `max` a refletir em input nenhum |
+
+**Mas as duas continuam sendo divergências reais do contrato v1**, e continuam
+listadas na tabela acima por isso: `POST /avaliacoes` ainda aceita `testes[]` com
+`ordem` e `repeticoes`, e as constraints de banco ainda existem
+(`prisma/schema.prisma:71,89`). Elas só podem ser riscadas quando o backend
+remover o modelo v1. Até lá, qualquer código que ainda fale com o contrato atual
+convive com elas.
+
+**Divergência encerrada em 05/08/2026 — edição de avaliação.** A tabela trazia
+"doc sugere formulário de edição de avaliação; não há endpoint", com a postura
+"não oferecer edição". **Isso não é mais verdade.** O estado real:
+
+- **O backend suporta edição.** `PATCH /api/avaliacoes/:id` existe
+  (`src/app/api/avaliacoes/[id]/route.ts:42`), é validado por
+  `atualizarAvaliacaoSchema` (`src/lib/schemas.ts:89-94`), grava em transação e
+  está documentado em `api.md:180-215`. Cada bloco enviado substitui o bloco
+  inteiro; bloco omitido fica como estava. B5 consta resolvido em `api.md:374`.
+- **O frontend ainda não implementa edição**, e isso segue sendo o previsto: a
+  tela de detalhe da avaliação é entregável da **E6**, que continua no roadmap.
+  Nada foi cortado — apenas ainda não foi construído.
+- **Isto não destrava a E6.** O bloqueio dela é outro e continua de pé: o
+  **contrato v2 não está fechado** (0.5, B6–B10). Um endpoint de edição no
+  modelo v1 não ajuda a construir uma tela do modelo v2.
 
 ### R7 — Gráficos do Recharts na impressão · probabilidade **média**
 
@@ -1130,13 +1394,11 @@ módulo server-only — mitigado por 7.4.
 
 ## 12. Decisões pendentes do backend
 
-### Bloqueios
+> Itens já respondidos pelo backend não ficam nesta lista — vão para
+> **"Decisões resolvidas"**, no fim da seção. Tudo o que aparece abaixo como
+> bloqueio ou dúvida está **genuinamente aberto** em 05/08/2026.
 
-**B1 — Período de 8 semanas.** `GET /avaliacoes/:id/relatorio` não aceita
-parâmetro algum; `periodo`, `resumoCmj` e `score` são calculados sobre o histórico
-inteiro. Opções: (a) backend adiciona `?semanas=` ou `?de=&ate=`; (b) o front
-aplica a janela **apenas** ao gráfico de CMJ e rotula o resto como período
-completo. **Bloqueia E7.**
+### Bloqueios
 
 **B2 — Seções do relatório no MVP.** A API não entrega evolução da curva entre
 períodos, comparação em pontos-chave nem Pmáx — três das dez seções do relatório
@@ -1151,22 +1413,69 @@ impressão do browser, ou link público sem proteção (expõe dado de atleta).
 **B4 — Filiais entram no MVP?** Não existem em `prisma/schema.prisma` nem em
 nenhuma rota. Se entram, mudam lista, filtro, cadastro e cabeçalho do relatório.
 
-**B5 — O MVP edita avaliação?** Só há `GET` e `DELETE` em
-`src/app/api/avaliacoes/[id]/route.ts`. Se não houver edição, confirmar que
-"excluir e recriar" é aceitável — muda a interface da E6.
+### Bloqueios do modelo v2 (registrados em 05/08/2026)
+
+Abertos pela descoberta de domínio descrita em 0.5. Detalhamento e evidência de
+código em [`evaluation-model-v2-proposal.md`](evaluation-model-v2-proposal.md)
+§14 e §15. **Todos travam a E5 v2 e, por consequência, a E6.**
+
+**B6 — Nomes e unidades dos quatro saltos adicionais.** Provisoriamente `Salto 2`
+a `Salto 5`. A unidade é o ponto duro: `medidaSimples.unidade` é
+`z.literal("cm")` (`src/lib/schemas.ts:14,26-29`) e `DefinicaoMedida.unidade` é o
+tipo literal `"cm"` (`src/lib/medidas.ts:23`), enquanto a bateria de saltos da
+planilha real (`planilha-atual.md:54`) inclui `REL %` (percentual) e `EUR`/`RSI`
+(adimensionais). **Um valor em `%` ou adimensional é impossível de enviar hoje.**
+Cliente responde o quê; backend responde como o schema passa a expressar.
+
+**B7 — `tempo` (s) ou velocidade **VMP** (m/s)?** O contrato atual pede tempo e
+deriva velocidade com um deslocamento chutado de 0,5 m
+(`DESLOCAMENTO_POR_CODIGO`, `src/lib/calculos.ts:19-28`), enquanto `vbt.md` e a
+planilha registram que o professor **já tem a VMP do encoder**. Muda o campo, o
+rótulo, a unidade e a validação. Ligada à dúvida 11 de `planilha-atual.md`.
+
+**B8 — Granularidade dos resultados de velocidade.** Um par carga/tempo por
+exercício, ou mais de um ponto por exercício? Define se o bloco Velocidade é um
+conjunto fixo de campos ou volta a ter estrutura variável — e é a diferença entre
+a E5 v2 ser simples ou reintroduzir a complexidade que acabou de sair.
+
+**B9 — A curva carga-velocidade continua no produto?** Com no máximo 2 pontos,
+`r²` degenera para `1` sempre e o índice de qualidade deixa de informar (R2).
+Afeta as seções 2, 3, 4, 7 e 10 do relatório (`planilha-atual.md:76-93`) e
+possivelmente a E7. **Decisão de produto, não técnica.**
+
+**B10 — DTO final e paths literais de `issues[].field`.** O frontend precisa da
+lista literal, não de uma descrição: os `name` dos inputs são iguais aos paths
+(6.4). Sem ela não dá para escrever um campo sequer.
 
 ### Dúvidas não bloqueantes
 
-| # | Pergunta |
-| --- | --- |
-| D1 | `periodo`/`resumoCmj` deveriam ser recortados até a data da avaliação relatada? |
-| D2 | `periodo.totalAvaliacoes` contar só avaliações com CMJ é intencional? |
-| D3 | `PATCH /alunos/:id` não consegue **limpar** `dataNascimento` (schema é `.optional()`, não `.nullable()`) — intencional? |
-| D4 | `perfil`, `nivel` e mensagens de erro virão acentuados, ou o front assume a tradução? |
-| D5 | `POST`/`PATCH /alunos` podem devolver `totalAvaliacoes`, evitando um refetch? |
-| D6 | O front pode importar `MEDIDAS` de `@/lib/medidas`, ou o catálogo deve vir só de `GET /medidas`? |
-| D7 | Dá para exportar um tipo `RelatorioResponse`? |
-| D8 | Extrair um service layer em `src/lib/` está no radar? (viabiliza consumo direto do domínio — 2.3) |
+| # | Pergunta | Situação |
+| --- | --- | --- |
+| D1 | `periodo`/`resumoCmj` deveriam ser recortados até a data da avaliação relatada? | **parcial** — com `?semanas=` a janela termina nela; sem o parâmetro, ainda cobre tudo (`api.md:367`) |
+| D2 | `periodo.totalAvaliacoes` contar só avaliações com CMJ é intencional? | **aberta** — comportamento documentado, mas a escolha é de produto |
+| D5 | `POST`/`PATCH /alunos` podem devolver `totalAvaliacoes`, evitando um refetch? | **aberta** — não implementado |
+| D8 | Extrair um service layer em `src/lib/` está no radar? (viabiliza consumo direto do domínio — 2.3) | **começou** — `src/lib/relatorio.ts` é o primeiro caso; sem plano de estender |
+
+### Decisões resolvidas
+
+**Registrado em 05/08/2026**, conferido contra `docs/api.md` e o código. Ficam
+aqui, e não nas listas acima, para a distinção entre aberto e concluído ser
+inequívoca. Não são pendências: são o estado vigente.
+
+| # | Decisão | Estado |
+| --- | --- | --- |
+| **B1** | Janela de período do relatório | **Resolvido.** `GET /avaliacoes/:id/relatorio?semanas=` — inteiro de 1 a 520, sem default de propósito, para nenhum relatório existente mudar de número em silêncio (`api.md:221-241`, `src/lib/schemas.ts:135-142`). Recorta `historicoCmj`, `resumoCmj` e `periodo`; **não** afeta `curva` nem `score`. `periodo.semanas` diz qual janela foi aplicada, ou `null` no histórico inteiro. **Deixou de bloquear a E7** — o que resta lá é UX de apresentação do período |
+| **B5** | O MVP edita avaliação? | **Resolvido.** `PATCH /avaliacoes/:id`, bloco a bloco (`api.md:180-215`, `route.ts:42`, `atualizarAvaliacaoSchema` em `schemas.ts:89-94`). O front ainda não implementa — é entregável da E6, hoje bloqueada pelo contrato v2, não pela falta de endpoint. Ver R6 |
+| **D3** | `PATCH /alunos/:id` não limpava `dataNascimento` | **Resolvido** no merge `back/apoio-front`: o schema virou `.nullish()` (`src/lib/schemas.ts:109-113`) e o handler trata `null` (`api/alunos/[id]/route.ts:49-56`). **Pendência de frontend gerada por isto:** a guarda de cliente da E4 (`MENSAGEM_LIMPAR_DATA`, `features/alunos/acoes.ts`) ficou obsoleta e deve ser removida numa passagem futura |
+| **D4** | `perfil`, `nivel` e mensagens virão acentuados? | **Resolvido: sim, prontos para exibição — o front não traduz nem corrige** (`api.md:332-335`). `perfil` ∈ {`Orientado a força`, `Equilibrado`, `Orientado a velocidade`, `Dados insuficientes`}; `nivel` ∈ {`Alto`, `Médio`, `Baixo`, `Inicial`, `Sem dados`}. Continua valendo a regra oposta para o campo `error` cru, que **é** sem acento e **deve** ser traduzido por status (4.7) |
+| **D6** | O front pode importar `MEDIDAS` de `@/lib/medidas`? | **Resolvido: sim** (`api.md:364`). O módulo não tem nenhum import, é catálogo estático e fonte única da verdade. `GET /medidas` continua existindo para quem preferir buscar. Ver 5.4 |
+| **D7** | Dá para exportar `RelatorioResponse`? | **Resolvido** (`api.md:302-311`, `api.md:366`). `RelatorioResponse`, `PontoCmj` e `ResumoCmjRelatorio` saem de `@/lib/relatorio`; `AvaliacaoResponse`, `TesteResponse` e `TentativaResponse` de `@/lib/avaliacoes`. Todos derivados das funções que montam a resposta. Ver 7.5 e R3 |
+
+> **Atenção ao ler esta tabela junto com 0.5.** Que uma decisão esteja resolvida
+> **não** significa que ela sobreviva ao modelo v2. `TesteResponse`,
+> `TentativaResponse` e o formato de `testes[]` em `PATCH /avaliacoes/:id` são
+> contrato **v1**: estão corretos hoje e mudam quando o contrato v2 for
+> publicado.
 
 ### Dependências externas (cliente)
 
@@ -1203,6 +1512,21 @@ Nenhuma etapa é considerada concluída sem todos os itens verificados.
 - [ ] `DELETE` (204) não tem o corpo lido
 - [ ] Status 400/404/409/422/500 têm tratamento visível
 - [ ] `issues[].field` mapeia para os campos certos do formulário
+
+### Modelo de avaliação
+
+Acrescentado em 05/08/2026 (0.5). Aplicável a qualquer PR que toque avaliação.
+
+- [ ] O contrato consumido corresponde ao `docs/api.md` **v2** — não a uma
+      suposição, nem ao modelo v1, nem à branch `feat/evaluation-form`
+- [ ] Todas as unidades exibidas vêm do **catálogo**, nenhuma escrita à mão na tela
+- [ ] Campos **derivados** não são pedidos manualmente ao professor
+- [ ] Nenhum resultado final é apresentado como "tentativa", "série", "repetição"
+      ou "ordem" — nem no rótulo, nem no texto de apoio, nem no `aria-label`
+- [ ] `null` versus zero testado **bloco a bloco** (Amplitude, Salto, Velocidade),
+      conferindo o payload real e não só a tela
+- [ ] Relatório e impressão revalidados após a mudança: quebras de página, seções
+      que encolheram ou cresceram, e o caminho de `ajuste: null`
 
 ### Estados
 
