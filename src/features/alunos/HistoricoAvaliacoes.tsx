@@ -10,6 +10,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ValorOuAusente } from "@/components/ui/valor-ausente";
+import {
+  NotaUnidadeProvisoria,
+  RotuloColuna,
+} from "@/features/alunos/RotuloColuna";
 import type { AvaliacaoCompleta } from "@/features/alunos/tipos";
 import { colunasDeMedida, valorDaColuna } from "@/features/alunos/utils";
 import {
@@ -31,8 +35,13 @@ export function HistoricoAvaliacoes({
       <h2 id="historico-heading" className="text-lg font-semibold">
         Histórico de avaliações
       </h2>
+      {/*
+        13 colunas nao cabem em tela estreita. `min-w-max` faz a tabela manter
+        a largura natural e rolar dentro do container que o `Table` ja tem
+        (overflow-x-auto), em vez de espremer 13 numeros ate ficarem ilegiveis.
+      */}
       <div className="mt-3">
-        <Table>
+        <Table className="min-w-max">
           <TableCaption className="sr-only">
             Histórico de avaliações de {nomeAluno}, mais recente primeiro
           </TableCaption>
@@ -43,13 +52,9 @@ export function HistoricoAvaliacoes({
                 <TableHead
                   key={`${coluna.chave}-${coluna.lado ?? "unico"}`}
                   scope="col"
+                  className="whitespace-nowrap"
                 >
-                  <abbr title={coluna.nomeCompleto} className="no-underline">
-                    {coluna.rotulo}
-                  </abbr>{" "}
-                  <span className="text-muted-foreground">
-                    ({coluna.unidade})
-                  </span>
+                  <RotuloColuna coluna={coluna} />
                 </TableHead>
               ))}
             </TableRow>
@@ -78,6 +83,7 @@ export function HistoricoAvaliacoes({
           </TableBody>
         </Table>
       </div>
+      <NotaUnidadeProvisoria colunas={colunas} />
     </section>
   );
 }
