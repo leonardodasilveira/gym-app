@@ -4,10 +4,7 @@ import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/ui/empty-state";
 import { AcaoImprimir } from "@/features/relatorio/AcaoImprimir";
-import { AnaliseTecnica } from "@/features/relatorio/AnaliseTecnica";
 import { AvisoProvisorio } from "@/features/relatorio/AvisoProvisorio";
-import { CardsResumo } from "@/features/relatorio/CardsResumo";
-import { CurvaTabela } from "@/features/relatorio/CurvaTabela";
 import { carregarRelatorio } from "@/features/relatorio/dados";
 import { HistoricoCmjTabela } from "@/features/relatorio/HistoricoCmjTabela";
 import { ListaTextos } from "@/features/relatorio/ListaTextos";
@@ -16,6 +13,7 @@ import { Recomendacoes } from "@/features/relatorio/Recomendacoes";
 import { RelatorioCabecalho } from "@/features/relatorio/RelatorioCabecalho";
 import { RelatorioSecao } from "@/features/relatorio/RelatorioSecao";
 import { ResumoCmj } from "@/features/relatorio/ResumoCmj";
+import { VelocidadeTabela } from "@/features/relatorio/VelocidadeTabela";
 import { dataDeHojeFormatada, formatarData } from "@/features/shared/formato";
 
 type Params = Promise<{ id: string }>;
@@ -82,28 +80,21 @@ export default async function RelatorioPage({
 
       <AvisoProvisorio provisorio={relatorio.provisorio} />
 
-      <RelatorioSecao id="visao-geral" titulo="Visão geral">
-        <CardsResumo
-          resumoCmj={relatorio.resumoCmj}
-          score={relatorio.score}
-          perfil={relatorio.curva.perfil}
-        />
-      </RelatorioSecao>
-
       <RelatorioSecao id="resumo-executivo" titulo="Resumo executivo">
         <ResumoCmj resumoCmj={relatorio.resumoCmj} />
       </RelatorioSecao>
 
-      <RelatorioSecao id="curva" titulo="Curva força-velocidade" provisorio>
-        <CurvaTabela curva={relatorio.curva} />
-      </RelatorioSecao>
-
-      <RelatorioSecao id="analise-tecnica" titulo="Análise técnica" provisorio>
-        <AnaliseTecnica ajuste={relatorio.curva.ajuste} />
-      </RelatorioSecao>
-
       <RelatorioSecao id="medidas" titulo="Medidas da avaliação">
         <MedidasTabela medidasDetalhadas={relatorio.medidasDetalhadas} />
+      </RelatorioSecao>
+
+      {/*
+        Fica junto de "Medidas" de proposito: os dois sao registro cru dos
+        blocos da avaliacao v2 (Amplitude/Salto ali, Velocidade aqui). Nao
+        herda a posicao da antiga secao de curva, que era interpretacao.
+      */}
+      <RelatorioSecao id="velocidade" titulo="Velocidade">
+        <VelocidadeTabela velocidadeDetalhada={relatorio.velocidadeDetalhada} />
       </RelatorioSecao>
 
       <RelatorioSecao id="historico-cmj" titulo="Histórico de CMJ">

@@ -8,6 +8,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ValorOuAusente } from "@/components/ui/valor-ausente";
+import {
+  NotaUnidadeProvisoria,
+  RotuloColuna,
+} from "@/features/alunos/RotuloColuna";
 import type { AvaliacaoCompleta } from "@/features/alunos/tipos";
 import { montarLinhasComparacao } from "@/features/alunos/utils";
 import {
@@ -64,12 +68,7 @@ export function ComparacaoAvaliacoes({
             {linhas.map((linha) => (
               <TableRow key={linha.rotulo}>
                 <TableHead scope="row" className="font-medium">
-                  <abbr title={linha.nomeCompleto} className="no-underline">
-                    {linha.rotulo}
-                  </abbr>{" "}
-                  <span className="text-muted-foreground">
-                    ({linha.unidade})
-                  </span>
+                  <RotuloColuna coluna={linha} />
                 </TableHead>
                 <TableCell className="text-right">
                   <ValorOuAusente
@@ -101,6 +100,7 @@ export function ComparacaoAvaliacoes({
           </TableBody>
         </Table>
       </div>
+      <NotaUnidadeProvisoria colunas={linhas} />
     </section>
   );
 }
