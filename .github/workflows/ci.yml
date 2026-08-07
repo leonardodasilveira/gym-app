@@ -1,0 +1,61 @@
+name: CI
+
+# Roda na PR e no push pra main. O push cobre o caso que motivou este
+# workflow: a PR #15 mergeou com 23 erros de typecheck e derrubou duas telas
+# em runtime, porque nao havia nada olhando.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Push novo na mesma PR cancela a execucao anterior — nao adianta esperar
+# resultado de commit que ja foi substituido.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # A maquina de desenvolvimento roda 24; o Next 16 pede >= 20.9.
+          node-version: 24
+          cache: npm
+
+      # `postinstall` roda `prisma generate`, e isso e obrigatorio:
+      # `src/generated/prisma` nao esta versionado (.gitignore), entao sem esta
+      # etapa o typecheck nao acha o client. Nao precisa de DATABASE_URL.
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Os quatro passos abaixo usam `!cancelled()` de proposito: falha num
+      # deles nao pula os outros. Numa PR que mexe em contrato, typecheck e
+      # teste costumam quebrar juntos, e ver so o primeiro obriga a um ciclo
+      # de push a mais. O job continua vermelho se qualquer um falhar.
+      - name: Typecheck
+        if: ${{ !cancelled() }}
+        run: npm run typecheck
+
+      - name: Lint
+        if: ${{ !cancelled() }}
+        run: npm run lint
+
+      - name: Testes
+        if: ${{ !cancelled() }}
+        run: npm test
+
+      # Unico passo que precisa da variavel: `lib/prisma.ts` valida a presenca
+      # dela ao ser importado, e a coleta de dados de pagina do build importa.
+      # Nao precisa de banco de verdade — nenhuma rota consulta em build, todas
+      # sao dinamicas. O arquivo apontado nunca chega a ser criado.
+      - name: Build de producao
+        if: ${{ !cancelled() }}
+        env:
+          DATABASE_URL: file:./prisma/ci.db
+        run: npm run build
