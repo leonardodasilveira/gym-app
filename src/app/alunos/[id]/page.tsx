@@ -6,7 +6,7 @@ import { AcoesAluno } from "@/features/alunos/AcoesAluno";
 import { AlunoCabecalho } from "@/features/alunos/AlunoCabecalho";
 import { ComparacaoAvaliacoes } from "@/features/alunos/ComparacaoAvaliacoes";
 import { HistoricoAvaliacoes } from "@/features/alunos/HistoricoAvaliacoes";
-import { TestesAvaliacao } from "@/features/alunos/TestesAvaliacao";
+import { VelocidadeAvaliacao } from "@/features/alunos/VelocidadeAvaliacao";
 import type { AlunoDetalhe, AvaliacaoCompleta } from "@/features/alunos/tipos";
 import { apiFetch } from "@/features/shared/api";
 import { origemAtual } from "@/features/shared/origem";
@@ -91,7 +91,7 @@ export default async function AlunoDetalhePage({
 
           <HistoricoAvaliacoes avaliacoes={avaliacoes} nomeAluno={aluno.nome} />
 
-          <TestesAvaliacao avaliacao={avaliacoes[0]} />
+          <VelocidadeAvaliacao avaliacao={avaliacoes[0]} />
         </>
       )}
     </main>
