@@ -1,5 +1,27 @@
 # E2 — Especificação de implementação
 
+> # ⚠️ PARCIALMENTE OBSOLETO — 05/08/2026
+>
+> **Este documento descreve uma tela que não existe mais como especificada.**
+> Ele é mantido como **registro do que foi implementado em 31/07/2026**, não
+> como instrução a seguir. Onde divergir de [`api.md`](api.md), vale `api.md`.
+>
+> **O que caiu.** A curva força-velocidade, o ajuste (`V0`, `F0`, `r²`,
+> inclinação, carga ótima), o `perfil` e o `score` **saíram do relatório** por
+> decisão de produto. Motivo: o modelo v2 reduziu a curva de 8 pontos para no
+> máximo 2 — um por exercício — e com 2 pontos a reta é exata por construção,
+> então `r²` daria `1` sempre. `src/lib/calculos.ts` foi **apagado**.
+>
+> Na prática isso invalida as seções que tratam de curva, análise técnica,
+> cards de score e perfil, e todas as referências a `@/lib/calculos`.
+>
+> **O que continua valendo:** medidas, `medidasDetalhadas`, histórico de CMJ,
+> `resumoCmj`, período/janela de semanas, textos placeholder, e as convenções
+> de acessibilidade, impressão e composição Server/Client.
+>
+> **O que entrou no lugar:** `velocidade` e `velocidadeDetalhada` — carga e
+> tempo como o professor digitou, sem nenhuma derivação. Ver `api.md`.
+
 **Contrato operacional** da etapa E2: `/avaliacoes/[id]/relatorio`, a primeira
 versão do relatório de performance, sem gráficos.
 
@@ -72,24 +94,27 @@ autenticação · filiais · botão de imprimir (§12.5).
 
 ### Fórmulas e textos (⚠️ provisórios, **não alterar, não recalcular**)
 
+> ⚠️ **Obsoleto em 05/08/2026.** `src/lib/calculos.ts` foi apagado inteiro:
+> curva, perfil e score saíram do relatório. Sobrou só a última linha.
+
 | Arquivo | O que produz |
 | --- | --- |
-| `src/lib/calculos.ts:79` | `ajustarCurva` — inclinação, v0, f0, r², carga ótima |
-| `src/lib/calculos.ts:125` | `classificarPerfil` — rótulo do perfil |
-| `src/lib/calculos.ts:137` | `calcularScore` — valor 0-100 e nível |
-| `src/lib/calculos.ts:38` | `velocidadeMedia` — velocidade de cada ponto |
+| ~~`src/lib/calculos.ts:79`~~ | ~~`ajustarCurva` — inclinação, v0, f0, r², carga ótima~~ — **removido** |
+| ~~`src/lib/calculos.ts:125`~~ | ~~`classificarPerfil` — rótulo do perfil~~ — **removido** |
+| ~~`src/lib/calculos.ts:137`~~ | ~~`calcularScore` — valor 0-100 e nível~~ — **removido** |
+| ~~`src/lib/calculos.ts:38`~~ | ~~`velocidadeMedia` — velocidade de cada ponto~~ — **removido** |
 | `src/lib/textos.ts:23` | `textosPlaceholder` — melhorias, atenção, recomendações, conclusão |
 
 ### Tipos exportados aproveitáveis (todos **verificados**)
 
 | Tipo | Origem | Linha |
 | --- | --- | --- |
-| `PontoCurva` | `@/lib/calculos` | 47 |
-| `AjusteCurva` | `@/lib/calculos` | 54 |
+| ~~`PontoCurva`~~ | ~~`@/lib/calculos`~~ | ⚠️ **módulo apagado (05/08/2026)** |
+| ~~`AjusteCurva`~~ | ~~`@/lib/calculos`~~ | ⚠️ **módulo apagado** |
 | `TextosRelatorio` | `@/lib/textos` | 16 |
-| `MedidaDetalhada` | `@/lib/avaliacoes` | 68 |
-| `MedidasDTO` | `@/lib/schemas` | 101 |
-| retorno de `calcularScore` | `@/lib/calculos` | 137 |
+| `MedidaDetalhada` | `@/lib/avaliacoes` | — |
+| ~~`MedidasDTO`~~ | ~~`@/lib/schemas`~~ | ⚠️ **renomeado**: virou `AmplitudeDTO` + `SaltosDTO` |
+| ~~retorno de `calcularScore`~~ | ~~`@/lib/calculos`~~ | ⚠️ **módulo apagado** |
 
 ### Componentes existentes reutilizáveis
 
@@ -158,7 +183,7 @@ aceito** — sem período, sem filtro, sem paginação (`route.ts:26`). O `id` �
 | Campo | Quando é `null` | Fonte |
 | --- | --- | --- |
 | `avaliacao.observacoes` | avaliação sem observação | **ocorre no seed** |
-| `curva.ajuste` | menos de 2 pontos, ou todas as cargas iguais | `calculos.ts:80,97` |
+| ~~`curva.ajuste`~~ | ⚠️ **campo removido da API em 05/08/2026** | — |
 | `curva.cargaMaximaKg` | `pontos` vazio | `route.ts:78` |
 | `resumoCmj` | aluno nunca teve CMJ medido | `route.ts:117` |
 | valores em `medidasDetalhadas[].valores[].valor` | medida não preenchida | `avaliacoes.ts:96,103` |
@@ -172,11 +197,13 @@ tipo permite array vazio e string vazia; tratar como possível (§14).
 
 ### 3.4 Valores fechados de `perfil` e `nivel` — e um problema de acentuação
 
-**[FATO]** `classificarPerfil` (`calculos.ts:125-130`) só pode devolver:
+⚠️ **Obsoleto (05/08/2026): `perfil` não é mais devolvido pela API.**
+**[FATO]** `classificarPerfil` (`calculos.ts:125-130`) só podia devolver:
 `"Dados insuficientes"` · `"Orientado a forca"` · `"Equilibrado"` ·
 `"Orientado a velocidade"`.
 
-**[FATO]** `calcularScore` (`calculos.ts:141-150`) só pode devolver `nivel`:
+⚠️ **Obsoleto (05/08/2026): `score` não é mais devolvido pela API.**
+**[FATO]** `calcularScore` (`calculos.ts:141-150`) só podia devolver `nivel`:
 `"Sem dados"` · `"Alto"` · `"Medio"` · `"Baixo"` · `"Inicial"`.
 
 **[FATO] Dois desses valores estão sem acento**: `"Orientado a forca"` (falta o
@@ -370,7 +397,8 @@ frase curta abaixo do título resolve.
 **[DECISÃO] Sem cor semântica.** Nem no score, nem no perfil, nem no r².
 Mesmo motivo da E1: atribuir verde/vermelho é interpretar desempenho, o que o
 frontend não pode fazer (`frontend-plan.md:154`), ainda mais sobre uma fórmula
-declaradamente inventada (`calculos.ts:133-135`). Usar sempre `Badge` neutro
+declaradamente inventada (`calculos.ts:133-135` — ⚠️ **arquivo apagado em
+05/08/2026; o score saiu da API**). Usar sempre `Badge` neutro
 (`variant="secondary"` ou `"outline"`).
 
 **[DECISÃO] Mapa de acentuação**, em `src/features/relatorio/rotulos.ts`:
@@ -650,9 +678,9 @@ declarar à mão só o que o backend não exporta:
 | Parte | Estratégia |
 | --- | --- |
 | `medidasDetalhadas` | `MedidaDetalhada[]` de `@/lib/avaliacoes` (**derivado**) |
-| `curva.pontos` | `PontoCurva[]` de `@/lib/calculos` (**derivado**) |
-| `curva.ajuste` | `AjusteCurva \| null` de `@/lib/calculos` (**derivado**) |
-| `score` | `ReturnType<typeof calcularScore>` de `@/lib/calculos` (**derivado**) |
+| ~~`curva.pontos`~~ | ⚠️ **removido em 05/08/2026** — ver `velocidadeDetalhada` em `api.md` |
+| ~~`curva.ajuste`~~ | ⚠️ **removido em 05/08/2026** |
+| ~~`score`~~ | ⚠️ **removido em 05/08/2026** |
 | `textos` | `TextosRelatorio` de `@/lib/textos` (**derivado**) |
 | `medidas` | `MedidasDTO` de `@/lib/schemas` (**derivado**, embora sem uso) |
 | `aluno`, `avaliacao`, `periodo`, `historicoCmj`, `resumoCmj`, `provisorio` | **declarados à mão** — não há tipo exportado |
@@ -661,7 +689,8 @@ declarar à mão só o que o backend não exporta:
 (`route.ts:95,116`). Declarar à mão é a única opção.
 
 **[FATO]** Todos os imports de `@/lib/*` aqui são **`import type`** — apagados na
-compilação. `@/lib/calculos`, `@/lib/textos` e `@/lib/avaliacoes` são permitidos
+compilação. ~~`@/lib/calculos`~~ (⚠️ **apagado**), `@/lib/textos` e
+`@/lib/avaliacoes` são permitidos
 **somente como tipo** (`frontend-plan.md:603-605`).
 
 **[FATO] Proibido importar** `@/lib/prisma`, `@/lib/http`, `@/generated/prisma/**`.

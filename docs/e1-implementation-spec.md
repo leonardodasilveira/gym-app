@@ -311,7 +311,7 @@ subtração entre dois valores já exibidos (§4.9); idade a partir de
 `dataNascimento`; contagem de itens de uma lista já recebida; formatação.
 
 **[BLOQUEIO se necessário] Proibidos no frontend** — pertencem ao backend
-(`src/lib/calculos.ts`, declaradamente provisório):
+(~~`src/lib/calculos.ts`, declaradamente provisório~~ — ver a nota abaixo):
 
 velocidade em m/s a partir de tempo/repetições · curva força-velocidade ·
 `V0` · `F0` · `Pmáx` · carga ótima · `r²` · inclinação · classificação de perfil ·
@@ -321,6 +321,20 @@ limitada (§8.3).
 
 Se a implementação parecer precisar de qualquer um destes, **parar** — é sinal de
 escopo indevido.
+
+> ⚠️ **Atualização de 05/08/2026 — a proibição ficou mais forte, não mais fraca.**
+>
+> `src/lib/calculos.ts` foi **apagado**. A curva força-velocidade, o ajuste, o
+> perfil e o score **saíram do produto**: com o modelo v2 a curva caiu de 8
+> pontos para no máximo 2, e com 2 pontos `r²` é sempre `1` por construção.
+>
+> Ou seja, estes cálculos agora não pertencem "ao backend" — **não pertencem a
+> lugar nenhum**. A lista acima continua valendo como proibição ao frontend, com
+> um agravante: não existe mais um backend para o qual empurrá-los. Se uma tela
+> parecer precisar de curva ou score, é **[BLOQUEIO]** de produto, não de
+> implementação.
+>
+> Segue permitido e inalterado tudo que a §4.10 lista como **apresentação pura**.
 
 ---
 
