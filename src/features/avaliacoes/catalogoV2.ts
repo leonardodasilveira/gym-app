@@ -1,9 +1,14 @@
 import { medidaPorChave } from "@/lib/medidas";
 
+/**
+ * `chaveDto` existia pra traduzir o nome do catalogo v1 (`mobilidadeTornozelo`)
+ * pra chave do DTO (`tornozelo`). No v2 os dois coincidem e o campo virou
+ * redundante — fica porque quem consome sao os fieldsets, que sao do front.
+ */
 export const CAMPOS_AMPLITUDE = [
-  { chaveDto: "tornozelo", ...medidaPorChave("mobilidadeTornozelo") },
-  { chaveDto: "quadril", ...medidaPorChave("mobilidadeQuadril") },
-  { chaveDto: "isquiotibiais", ...medidaPorChave("amplitudeIsquiotibiais") },
+  { chaveDto: "tornozelo", ...medidaPorChave("tornozelo") },
+  { chaveDto: "quadril", ...medidaPorChave("quadril") },
+  { chaveDto: "isquiotibiais", ...medidaPorChave("isquiotibiais") },
   { chaveDto: "slb", ...medidaPorChave("slb") },
 ] as const;
 
