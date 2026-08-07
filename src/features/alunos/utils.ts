@@ -1,4 +1,10 @@
-import { MEDIDAS, siglaComLado, type Lado } from "@/lib/medidas";
+import {
+  MEDIDAS,
+  siglaComLado,
+  type ChaveAmplitude,
+  type ChaveSalto,
+  type Lado,
+} from "@/lib/medidas";
 
 import type {
   AlunoResumo,
@@ -49,31 +55,39 @@ export function filtrarAlunos(
 type ColunaMedidaBase = {
   rotulo: string;
   nomeCompleto: string;
-  unidade: string;
+  /**
+   * null = unidade ainda nao confirmada (bloqueio B6, ver `lib/medidas.ts`).
+   * Quem renderiza precisa tratar; imprimir "()" vazio nao serve.
+   */
+  unidade: string | null;
 };
 
 /**
  * Uma coluna por lado para medida bilateral, uma coluna para medida simples.
  * Sempre derivado de MEDIDAS, na ordem do catalogo — nunca escrito a mao.
  *
- * Uniao discriminada por `lado`: cada ramo restringe `chave` as unicas
- * chaves de MEDIDAS daquele formato, entao `avaliacao.medidas[chave]`
- * resolve para um tipo unico (nunca a uniao dos 5 formatos) sem `as`.
+ * Uniao discriminada por `bloco`, nao mais por `lado`: no v2 e o bloco que diz
+ * de qual objeto da resposta o valor sai (`amplitude` ou `saltos`), e cada ramo
+ * restringe `chave` as chaves daquele bloco — entao a indexacao resolve para um
+ * tipo unico, sem `as`. `lado` continua no tipo porque acompanha o bloco.
  */
 export type ColunaMedida =
   | (ColunaMedidaBase & {
-      chave: Extract<(typeof MEDIDAS)[number], { bilateral: true }>["chave"];
+      bloco: "amplitude";
+      chave: ChaveAmplitude;
       lado: Lado;
     })
   | (ColunaMedidaBase & {
-      chave: Extract<(typeof MEDIDAS)[number], { bilateral: false }>["chave"];
+      bloco: "salto";
+      chave: ChaveSalto;
       lado: null;
     });
 
 export function colunasDeMedida(): ColunaMedida[] {
   return MEDIDAS.flatMap((definicao): ColunaMedida[] => {
-    if (definicao.bilateral) {
+    if (definicao.bloco === "amplitude") {
       return (["direito", "esquerdo"] as const).map((lado) => ({
+        bloco: "amplitude" as const,
         chave: definicao.chave,
         lado,
         rotulo: siglaComLado(definicao.sigla, lado),
@@ -84,6 +98,7 @@ export function colunasDeMedida(): ColunaMedida[] {
 
     return [
       {
+        bloco: "salto" as const,
         chave: definicao.chave,
         lado: null,
         rotulo: definicao.sigla,
@@ -94,23 +109,47 @@ export function colunasDeMedida(): ColunaMedida[] {
   });
 }
 
+// --- sincronia entre bloco e lateralidade ----------------------------------
+
+type Igual<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+
+/**
+ * O tipo acima assume que bloco Amplitude == medida bilateral e bloco Salto ==
+ * valor unico. Isso e verdade no catalogo de hoje, mas `bloco` e `bilateral`
+ * sao campos independentes em `DefinicaoMedida` — nada impede uma medida futura
+ * de furar a regra. Este check quebra a compilacao nesse dia, em vez de deixar
+ * `valorDaColuna` ler um lado que nao existe. Mesmo modelo dos checks no fim de
+ * `lib/schemas.ts`.
+ */
+const _amplitudeEhBilateral: Igual<
+  ChaveAmplitude,
+  Extract<(typeof MEDIDAS)[number], { bilateral: true }>["chave"]
+> = true;
+const _saltoEhValorUnico: Igual<
+  ChaveSalto,
+  Extract<(typeof MEDIDAS)[number], { bilateral: false }>["chave"]
+> = true;
+void _amplitudeEhBilateral;
+void _saltoEhValorUnico;
+
 /** Valor de uma coluna numa avaliacao — null quando nao medido. */
 export function valorDaColuna(
   avaliacao: AvaliacaoCompleta,
   coluna: ColunaMedida,
 ): number | null {
-  if (coluna.lado === null) {
-    return avaliacao.medidas[coluna.chave].valor;
+  if (coluna.bloco === "amplitude") {
+    return avaliacao.amplitude[coluna.chave][coluna.lado];
   }
 
-  return avaliacao.medidas[coluna.chave][coluna.lado];
+  return avaliacao.saltos[coluna.chave];
 }
 
 /** Uma linha por coluna de medida, comparando duas avaliacoes. */
 export type LinhaComparacao = {
   rotulo: string;
   nomeCompleto: string;
-  unidade: string;
+  /** null = unidade ainda nao confirmada (bloqueio B6). */
+  unidade: string | null;
   anterior: number | null;
   atual: number | null;
   /** null quando `anterior` ou `atual` (ou ambos) sao null — nunca 0 nesse caso. */
@@ -118,9 +157,10 @@ export type LinhaComparacao = {
 };
 
 /**
- * Compara duas avaliacoes coluna a coluna. Todas as 9 linhas sempre saem,
- * mesmo com os dois lados nulos — a ausencia e informacao para o professor.
- * Delta so e calculado quando os dois valores sao numeros (0 incluido).
+ * Compara duas avaliacoes coluna a coluna. Todas as 13 linhas sempre saem
+ * (eram 9 no v1; os quatro saltos novos entraram no catalogo), mesmo com os
+ * dois lados nulos — a ausencia e informacao para o professor. Delta so e
+ * calculado quando os dois valores sao numeros (0 incluido).
  */
 export function montarLinhasComparacao(
   atual: AvaliacaoCompleta,

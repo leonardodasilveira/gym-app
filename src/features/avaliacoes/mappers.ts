@@ -25,9 +25,14 @@ export function formDataParaDTO(fd: FormData, alunoId: string): { dto: Record<st
 
 export type ReferenciaAnteriorV2 = { dataAvaliacao: string; amplitude: { tornozelo: { direito: number | null; esquerdo: number | null }; quadril: { direito: number | null; esquerdo: number | null }; isquiotibiais: { direito: number | null; esquerdo: number | null }; slb: { direito: number | null; esquerdo: number | null } }; cmj: number | null };
 
-export function referenciaV2DeAvaliacaoV1(avaliacao: Pick<AvaliacaoCompleta, "dataAvaliacao" | "medidas">): ReferenciaAnteriorV2 {
-  const m = avaliacao.medidas;
-  return { dataAvaliacao: avaliacao.dataAvaliacao, amplitude: { tornozelo: { direito: m.mobilidadeTornozelo.direito, esquerdo: m.mobilidadeTornozelo.esquerdo }, quadril: { direito: m.mobilidadeQuadril.direito, esquerdo: m.mobilidadeQuadril.esquerdo }, isquiotibiais: { direito: m.amplitudeIsquiotibiais.direito, esquerdo: m.amplitudeIsquiotibiais.esquerdo }, slb: { direito: m.slb.direito, esquerdo: m.slb.esquerdo } }, cmj: m.cmj.valor };
+/**
+ * Antes isto reempacotava uma avaliacao v1 (`medidas`, chaves longas) no formato
+ * que o formulario espera. O backend v2 ja responde nesse formato, entao virou
+ * projecao: leva `amplitude` inteiro e so o CMJ do bloco de saltos — os quatro
+ * saltos provisorios nao viram referencia porque a unidade deles segue no B6.
+ */
+export function referenciaV2DeAvaliacao(avaliacao: Pick<AvaliacaoCompleta, "dataAvaliacao" | "amplitude" | "saltos">): ReferenciaAnteriorV2 {
+  return { dataAvaliacao: avaliacao.dataAvaliacao, amplitude: avaliacao.amplitude, cmj: avaliacao.saltos.cmj };
 }
 
 type IssueSimples = { field: string; message: string };

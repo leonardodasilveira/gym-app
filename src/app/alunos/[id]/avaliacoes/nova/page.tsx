@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { AvaliacaoFormV2 } from "@/features/avaliacoes/AvaliacaoFormV2";
-import { referenciaV2DeAvaliacaoV1 } from "@/features/avaliacoes/mappers";
+import { referenciaV2DeAvaliacao } from "@/features/avaliacoes/mappers";
 import type { AlunoDetalhe, AvaliacaoCompleta } from "@/features/alunos/tipos";
 import { apiFetch } from "@/features/shared/api";
 import { hojeIsoSaoPaulo } from "@/features/shared/formato";
@@ -12,5 +12,5 @@ export default async function NovaAvaliacaoPage({ params }: PageProps<"/alunos/[
   if (!resultadoAluno.ok) { if (resultadoAluno.erro.status === 404) notFound(); throw new Error(resultadoAluno.erro.mensagem); }
   if (!resultadoReferencia.ok) throw new Error(resultadoReferencia.erro.mensagem);
   const anterior = resultadoReferencia.dados[0];
-  return <AvaliacaoFormV2 alunoId={id} alunoNome={resultadoAluno.dados.nome} alunoAtivo={resultadoAluno.dados.ativo} referencia={anterior ? referenciaV2DeAvaliacaoV1(anterior) : null} dataPadrao={hojeIsoSaoPaulo()} />;
+  return <AvaliacaoFormV2 alunoId={id} alunoNome={resultadoAluno.dados.nome} alunoAtivo={resultadoAluno.dados.ativo} referencia={anterior ? referenciaV2DeAvaliacao(anterior) : null} dataPadrao={hojeIsoSaoPaulo()} />;
 }
