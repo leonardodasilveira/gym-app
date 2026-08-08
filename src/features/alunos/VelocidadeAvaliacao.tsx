@@ -1,16 +1,6 @@
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ValorOuAusente } from "@/components/ui/valor-ausente";
+import { VelocidadeTabelaAvaliacao } from "@/features/avaliacoes/VelocidadeTabelaAvaliacao";
 import type { AvaliacaoCompleta } from "@/features/alunos/tipos";
-import { formatarData, formatarNumeroOuTraco } from "@/features/shared/formato";
-import { EXERCICIOS_VELOCIDADE } from "@/lib/medidas";
+import { formatarData } from "@/features/shared/formato";
 
 /**
  * Substitui o antigo `TestesAvaliacao`, que nao pode ser remapeado: o v1
@@ -19,9 +9,9 @@ import { EXERCICIOS_VELOCIDADE } from "@/lib/medidas";
  * nem repeticao no modelo novo, entao a tabela de tentativas nao tinha dado —
  * virou esta, com o que o bloco Velocidade de fato traz.
  *
- * Os dois exercicios sempre aparecem, mesmo sem medicao: o conjunto e fechado
- * pelo catalogo (`EXERCICIOS_VELOCIDADE`), e some-los faria a tabela mudar de
- * tamanho conforme o preenchimento — a mesma regra que o relatorio segue.
+ * A tabela em si (`VelocidadeTabelaAvaliacao`) e compartilhada com o detalhe
+ * da avaliacao (E6); este componente cuida so do contexto proprio da ficha —
+ * titulo, data e wrapper.
  */
 export function VelocidadeAvaliacao({
   avaliacao,
@@ -38,47 +28,7 @@ export function VelocidadeAvaliacao({
       </p>
 
       <div className="mt-3">
-        <Table>
-          <TableCaption className="sr-only">
-            Carga e tempo por exercício do bloco Velocidade
-          </TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead scope="col">Exercício</TableHead>
-              <TableHead scope="col" className="text-right">
-                Carga (kg)
-              </TableHead>
-              <TableHead scope="col" className="text-right">
-                Tempo (s)
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {EXERCICIOS_VELOCIDADE.map((exercicio) => {
-              const medido = avaliacao.velocidade[exercicio.chave];
-
-              return (
-                <TableRow key={exercicio.chave}>
-                  <TableHead scope="row" className="font-medium">
-                    {exercicio.nome}
-                  </TableHead>
-                  <TableCell className="text-right">
-                    <ValorOuAusente
-                      valor={medido.cargaKg}
-                      formatar={formatarNumeroOuTraco}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <ValorOuAusente
-                      valor={medido.tempoSegundos}
-                      formatar={formatarNumeroOuTraco}
-                    />
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <VelocidadeTabelaAvaliacao velocidade={avaliacao.velocidade} />
       </div>
     </section>
   );

@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { EmptyState } from "@/components/ui/empty-state";
 import { BlocoMedidas } from "@/features/avaliacoes/BlocoMedidas";
 import { carregarAvaliacao } from "@/features/avaliacoes/dados";
 import { linhasDoBloco } from "@/features/avaliacoes/detalhe";
+import { VelocidadeTabelaAvaliacao } from "@/features/avaliacoes/VelocidadeTabelaAvaliacao";
 import { formatarData } from "@/features/shared/formato";
 
 type Params = Promise<{ id: string }>;
@@ -50,6 +52,7 @@ export default async function AvaliacaoDetalhePage({
   // criadoEm e ISO completo ("2026-08-08T10:51:48.500Z"), nao "AAAA-MM-DD" —
   // formatarData faz split("-") e quebraria. So a data sobrevive ao corte.
   const dataRegistro = avaliacao.criadoEm.slice(0, 10);
+  const observacoes = avaliacao.observacoes?.trim() ?? "";
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-12">
@@ -88,6 +91,28 @@ export default async function AvaliacaoDetalhePage({
         legenda="Resultados de salto registrados na avaliação"
         linhas={linhasDoBloco(avaliacao, "salto")}
       />
+
+      <section aria-labelledby="velocidade-heading" className="mt-8">
+        <h2 id="velocidade-heading" className="text-lg font-semibold">
+          Velocidade
+        </h2>
+        <div className="mt-3">
+          <VelocidadeTabelaAvaliacao velocidade={avaliacao.velocidade} />
+        </div>
+      </section>
+
+      <section aria-labelledby="observacoes-heading" className="mt-8">
+        <h2 id="observacoes-heading" className="text-lg font-semibold">
+          Observações
+        </h2>
+        <div className="mt-3">
+          {observacoes ? (
+            <p className="text-sm whitespace-pre-wrap">{observacoes}</p>
+          ) : (
+            <EmptyState titulo="Nenhuma observação registrada" />
+          )}
+        </div>
+      </section>
     </main>
   );
 }
