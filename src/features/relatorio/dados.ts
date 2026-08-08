@@ -11,11 +11,15 @@ import { origemAtual } from "@/features/shared/origem";
  * headers(); nunca importar em Client Component.
  */
 export const carregarRelatorio = cache(
-  async (id: string): Promise<ResultadoApi<RelatorioResponse>> => {
+  async (
+    id: string,
+    semanas: number | null,
+  ): Promise<ResultadoApi<RelatorioResponse>> => {
     const origem = await origemAtual();
     const idCodificado = encodeURIComponent(id);
+    const query = semanas === null ? "" : `?semanas=${semanas}`;
     return apiFetch<RelatorioResponse>(
-      `${origem}/api/avaliacoes/${idCodificado}/relatorio`,
+      `${origem}/api/avaliacoes/${idCodificado}/relatorio${query}`,
     );
   },
 );

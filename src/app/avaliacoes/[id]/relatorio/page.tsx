@@ -9,6 +9,7 @@ import { carregarRelatorio } from "@/features/relatorio/dados";
 import { HistoricoCmjTabela } from "@/features/relatorio/HistoricoCmjTabela";
 import { ListaTextos } from "@/features/relatorio/ListaTextos";
 import { MedidasTabela } from "@/features/relatorio/MedidasTabela";
+import { periodoDosParametros } from "@/features/relatorio/periodo";
 import { Recomendacoes } from "@/features/relatorio/Recomendacoes";
 import { RelatorioCabecalho } from "@/features/relatorio/RelatorioCabecalho";
 import { RelatorioSecao } from "@/features/relatorio/RelatorioSecao";
@@ -17,14 +18,19 @@ import { VelocidadeTabela } from "@/features/relatorio/VelocidadeTabela";
 import { dataDeHojeFormatada, formatarData } from "@/features/shared/formato";
 
 type Params = Promise<{ id: string }>;
+type SearchParams = Promise<{ semanas?: string | string[] }>;
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: SearchParams;
 }): Promise<Metadata> {
   const { id } = await params;
-  const resultado = await carregarRelatorio(id);
+  const parametros = await searchParams;
+  const periodo = periodoDosParametros(parametros.semanas);
+  const resultado = await carregarRelatorio(id, periodo.semanas);
 
   if (!resultado.ok) {
     return { title: "Relatório" };
@@ -38,16 +44,20 @@ export async function generateMetadata({
 
 export default async function RelatorioPage({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: SearchParams;
 }) {
   const { id } = await params;
+  const parametros = await searchParams;
+  const periodo = periodoDosParametros(parametros.semanas);
 
   // Chamada unica (deduplicada com generateMetadata via cache()): o
   // endpoint de relatorio ja traz tudo, inclusive aluno.id para o link de
   // volta. Sem Zod nesta rota do backend — id malformado e inexistente
   // caem ambos em 404 (route.ts usa findUnique direto).
-  const resultado = await carregarRelatorio(id);
+  const resultado = await carregarRelatorio(id, periodo.semanas);
 
   if (!resultado.ok) {
     if (resultado.erro.status === 404) {
