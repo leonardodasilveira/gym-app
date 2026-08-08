@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { cn } from "@/components/utils";
 import { AcoesAvaliacao } from "@/features/avaliacoes/AcoesAvaliacao";
 import { BlocoMedidas } from "@/features/avaliacoes/BlocoMedidas";
 import { carregarAvaliacao } from "@/features/avaliacoes/dados";
@@ -57,12 +59,20 @@ export default async function AvaliacaoDetalhePage({
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-12">
-      <Link
-        href={`/alunos/${avaliacao.alunoId}`}
-        className="inline-block rounded-sm text-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
-      >
-        ← Ficha do aluno
-      </Link>
+      <div className="flex items-center justify-between gap-4">
+        <Link
+          href={`/alunos/${avaliacao.alunoId}`}
+          className="inline-block rounded-sm text-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+        >
+          ← Ficha do aluno
+        </Link>
+        <Link
+          href={`/avaliacoes/${avaliacao.id}/relatorio`}
+          className={cn(buttonVariants({ variant: "outline" }), "h-11 sm:h-9")}
+        >
+          Ver relatório
+        </Link>
+      </div>
 
       <div className="mt-4 flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">

@@ -64,7 +64,7 @@ export function HistoricoAvaliacoes({
               <TableRow key={avaliacao.id}>
                 <TableHead scope="row" className="font-medium">
                   <Link
-                    href={`/avaliacoes/${avaliacao.id}/relatorio`}
+                    href={`/avaliacoes/${avaliacao.id}`}
                     className="rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
                   >
                     {formatarData(avaliacao.dataAvaliacao)}
