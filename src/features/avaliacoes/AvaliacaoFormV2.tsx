@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -20,6 +21,7 @@ const INICIAL: EstadoAvaliacaoV2 = { status: "inicial" };
 type Props = { alunoId: string; alunoNome: string; alunoAtivo: boolean; referencia: ReferenciaAnteriorV2 | null; dataPadrao: string };
 
 export function AvaliacaoFormV2({ alunoId, alunoNome, alunoAtivo, referencia, dataPadrao }: Props) {
+  const router = useRouter();
   const acao = criarAvaliacaoV2.bind(null, { alunoId });
   const [estado, dispatch, pendente] = useActionState(acao, INICIAL);
   const formRef = useRef<HTMLFormElement>(null); const emAndamentoRef = useRef(false); const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -30,7 +32,12 @@ export function AvaliacaoFormV2({ alunoId, alunoNome, alunoAtivo, referencia, da
   }, [alunoId]);
   useEffect(() => { if (!pendente) emAndamentoRef.current = false; }, [pendente]);
   useEffect(() => { if (estado.status !== "erro") return; formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(); }, [estado]);
-  useEffect(() => { if (estado.status === "sucesso") limparRascunho(alunoId); }, [estado, alunoId]);
+  useEffect(() => {
+    if (estado.status !== "sucesso") return;
+    limparRascunho(alunoId);
+    router.refresh();
+    router.push(`/alunos/${alunoId}`);
+  }, [estado, alunoId, router]);
   const valores = estado.status === "erro" ? estado.valores : { dataAvaliacao: dataPadrao, observacoes: "", campos: {} };
   // Base UI fixa o estado interno de `defaultValue` na montagem. React 19
   // reseta o form ao concluir a action; quando o eco volta, uma nova instância
