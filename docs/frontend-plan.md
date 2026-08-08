@@ -1166,15 +1166,29 @@ base deste.
 
 ---
 
-### E6 — Detalhe da avaliação (**desbloqueada, ainda não iniciada**)
+### E6 — Detalhe da avaliação (**concluída**)
 
 **Objetivo.** Fechar o ciclo de escrita e provar o round-trip do contrato.
 
-> **Status em 08/08/2026: desbloqueada.** A E5 v2 está concluída e integrada
-> (ver acima). A tela `/avaliacoes/[id]` **ainda não existe** — confirmado na
-> lista de rotas do build — e nasce direto no modelo v2, sem retrabalho.
-> `GET/PATCH/DELETE /avaliacoes/:id` já estão prontos e no formato v2
-> (`c5c451a`); `AvaliacaoResponse` é derivado do serializador real.
+> **Status em 08/08/2026: concluída.** `/avaliacoes/[id]` existe: cabeçalho
+> (aluno, data da avaliação, data de registro), os três blocos do modelo v2
+> (Amplitude, Salto, Velocidade), observações, exclusão com confirmação e
+> atalho "Ver relatório". Especificado em
+> [`e6-implementation-spec.md`](e6-implementation-spec.md), implementado em 6
+> commits nesta ordem: `fac3ccf` (spec), `f672df4` (rota/loader/404),
+> `feb550d` (Amplitude/Salto), `2da8ad4` (Velocidade/observações), `9bb2304`
+> (exclusão), e o commit deste registro.
+>
+> A tabela de velocidade foi extraída de
+> `features/alunos/VelocidadeAvaliacao.tsx` para
+> `features/avaliacoes/VelocidadeTabelaAvaliacao.tsx` — só a representação
+> `Exercício | Carga | Tempo`, compartilhada entre a ficha e o detalhe; o
+> contexto próprio da ficha (título, data, wrapper) não se moveu. Na ficha, o
+> link da data do histórico passou a apontar para o detalhe em vez de ir
+> direto ao relatório: **Ficha → Detalhe → Relatório**.
+>
+> **Edição de avaliação não entrou nesta etapa** — decisão explícita de
+> produto (08/08/2026), não lacuna técnica. Ver nota abaixo.
 
 **Entregáveis.** `/avaliacoes/[id]` com as siglas do professor: medidas de
 amplitude, resultados de salto e resultados de velocidade **conforme o
@@ -1185,12 +1199,25 @@ A composição do bloco de velocidade **já está fechada pelo contrato**: um pa
 decididos, ver 0.5.
 
 **Critérios de aceite.**
-- O que foi digitado na E5 aparece idêntico.
-- Medidas não medidas como "—", nunca "0".
-- Unidades exibidas vêm do catálogo, não escritas à mão na tela.
-- Excluir pede confirmação e volta para a ficha do aluno, com a lista atualizada.
+- O que foi digitado na E5 aparece idêntico. ✅
+- Medidas não medidas como "—", nunca "0". ✅ (`ValorOuAusente` +
+  `formatarNumeroOuTraco`, cobertos por teste em `detalhe.test.ts`)
+- Unidades exibidas vêm do catálogo, não escritas à mão na tela. ✅ (import
+  estático de `@/lib/medidas`, sem segunda fonte de verdade; saltos
+  provisórios sem unidade não recebem `cm`/`%`/`m/s` inventados)
+- Excluir pede confirmação e volta para a ficha do aluno, com a lista
+  atualizada. ✅
 
-**Dependências.** Nenhuma pendente — E5 v2 concluída e contrato v2 publicado.
+**Dependências.** Nenhuma — concluída.
+
+**Trabalho futuro registrado, fora do escopo da E6.** `PATCH /avaliacoes/:id`
+existe e está em formato v2, bloco a bloco, transacional
+(`src/app/api/avaliacoes/[id]/route.ts:51`, `atualizarAvaliacaoSchema` em
+`src/lib/schemas.ts:151`). O frontend não o consome — não há tela de edição,
+nem modo editar em `AvaliacaoFormV2`, nem botão "Editar" na E6. É etapa
+própria, ainda sem número no roadmap nem especificação. Isto fecha a
+ambiguidade que R6 e B5 deste documento deixavam, ao sugerir que a edição
+sairia junto com a E6.
 
 ---
 
@@ -1396,12 +1423,12 @@ convive com elas.
   `atualizarAvaliacaoSchema` (`src/lib/schemas.ts:89-94`), grava em transação e
   está documentado em `api.md:180-215`. Cada bloco enviado substitui o bloco
   inteiro; bloco omitido fica como estava. B5 consta resolvido em `api.md:374`.
-- **O frontend ainda não implementa edição**, e isso segue sendo o previsto: a
-  tela de detalhe da avaliação é entregável da **E6**, que continua no roadmap.
-  Nada foi cortado — apenas ainda não foi construído.
-- **A E6 está desbloqueada em 08/08/2026**: a E5 v2 foi concluída e o contrato
-  v2 foi publicado (0.5). O `PATCH` acima já está no formato v2 — a E6 pode
-  usá-lo sem adaptação.
+- **O frontend ainda não implementa edição.** A tela de detalhe da avaliação
+  (E6) foi entregue em 08/08/2026 sem edição — decisão explícita de produto,
+  não lacuna técnica: ver a seção E6 acima. Edição continua no roadmap como
+  etapa própria, ainda sem número nem especificação.
+- O `PATCH` acima já está no formato v2, pronto para quando essa etapa for
+  especificada — não vai exigir adaptação de contrato.
 
 ### R7 — Gráficos do Recharts na impressão · probabilidade **média**
 
@@ -1509,7 +1536,7 @@ inequívoca. Não são pendências: são o estado vigente.
 | # | Decisão | Estado |
 | --- | --- | --- |
 | **B1** | Janela de período do relatório | **Resolvido.** `GET /avaliacoes/:id/relatorio?semanas=` — inteiro de 1 a 520, sem default de propósito, para nenhum relatório existente mudar de número em silêncio (`api.md:221-241`, `src/lib/schemas.ts:135-142`). Recorta `historicoCmj`, `resumoCmj` e `periodo`; **não** afeta `curva` nem `score`. `periodo.semanas` diz qual janela foi aplicada, ou `null` no histórico inteiro. **Deixou de bloquear a E7** — o que resta lá é UX de apresentação do período |
-| **B5** | O MVP edita avaliação? | **Resolvido.** `PATCH /avaliacoes/:id`, bloco a bloco (`api.md:180-215`, `route.ts:42`, `atualizarAvaliacaoSchema` em `schemas.ts:89-94`), já no formato v2. O front ainda não implementa — é entregável da E6, desbloqueada desde a conclusão da E5 v2. Ver R6 |
+| **B5** | O MVP edita avaliação? | **Resolvido.** `PATCH /avaliacoes/:id`, bloco a bloco (`api.md:180-215`, `route.ts:42`, `atualizarAvaliacaoSchema` em `schemas.ts:89-94`), já no formato v2. O front ainda não implementa — a E6 foi entregue sem edição por decisão de produto (08/08/2026); segue como etapa própria, sem número no roadmap. Ver R6 |
 | **D3** | `PATCH /alunos/:id` não limpava `dataNascimento` | **Resolvido** no merge `back/apoio-front`: o schema virou `.nullish()` (`src/lib/schemas.ts:109-113`) e o handler trata `null` (`api/alunos/[id]/route.ts:49-56`). **Pendência de frontend gerada por isto:** a guarda de cliente da E4 (`MENSAGEM_LIMPAR_DATA`, `features/alunos/acoes.ts`) ficou obsoleta e deve ser removida numa passagem futura |
 | **D4** | `perfil`, `nivel` e mensagens virão acentuados? | **Resolvido: sim, prontos para exibição — o front não traduz nem corrige** (`api.md:332-335`). `perfil` ∈ {`Orientado a força`, `Equilibrado`, `Orientado a velocidade`, `Dados insuficientes`}; `nivel` ∈ {`Alto`, `Médio`, `Baixo`, `Inicial`, `Sem dados`}. Continua valendo a regra oposta para o campo `error` cru, que **é** sem acento e **deve** ser traduzido por status (4.7) |
 | **D6** | O front pode importar `MEDIDAS` de `@/lib/medidas`? | **Resolvido: sim** (`api.md:364`). O módulo não tem nenhum import, é catálogo estático e fonte única da verdade. `GET /medidas` continua existindo para quem preferir buscar. Ver 5.4 |
