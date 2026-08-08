@@ -10,10 +10,12 @@ export function RelatorioCabecalho({
   aluno,
   avaliacao,
   periodo,
+  resumoCmj,
 }: {
   aluno: RelatorioResponse["aluno"];
   avaliacao: RelatorioResponse["avaliacao"];
   periodo: RelatorioResponse["periodo"];
+  resumoCmj: RelatorioResponse["resumoCmj"];
 }) {
   return (
     <header>
@@ -28,10 +30,27 @@ export function RelatorioCabecalho({
         </span>
       </p>
       <p className="mt-1 text-sm text-muted-foreground">
-        Histórico do aluno: {formatarData(periodo.de)} até o último registro
-        do histórico ({formatarData(periodo.ate)}) · {periodo.totalAvaliacoes}{" "}
-        avaliações com CMJ no período
+        {periodo.semanas === null ? (
+          <>
+            Histórico completo do aluno: {formatarData(periodo.de)} a{" "}
+            {formatarData(periodo.ate)} · {periodo.totalAvaliacoes} avaliações
+            com CMJ.
+          </>
+        ) : (
+          <>
+            Janela de {periodo.semanas} semanas terminando em{" "}
+            {formatarData(avaliacao.dataAvaliacao)}. Dados no período:{" "}
+            {formatarData(periodo.de)} a {formatarData(periodo.ate)} ·{" "}
+            {periodo.totalAvaliacoes} avaliações com CMJ.
+          </>
+        )}
       </p>
+      {periodo.totalAvaliacoes === 0 || resumoCmj === null ? (
+        <p className="mt-2 text-sm text-muted-foreground">
+          Nenhuma avaliação com CMJ nesta janela. Isso não é um erro — amplie
+          o período para ver a evolução.
+        </p>
+      ) : null}
       {avaliacao.observacoes !== null ? (
         <p className="mt-3 text-sm">{avaliacao.observacoes}</p>
       ) : null}

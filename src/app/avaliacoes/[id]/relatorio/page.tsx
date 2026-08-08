@@ -10,6 +10,7 @@ import { HistoricoCmjTabela } from "@/features/relatorio/HistoricoCmjTabela";
 import { ListaTextos } from "@/features/relatorio/ListaTextos";
 import { MedidasTabela } from "@/features/relatorio/MedidasTabela";
 import { periodoDosParametros } from "@/features/relatorio/periodo";
+import { PeriodoRelatorio } from "@/features/relatorio/PeriodoRelatorio";
 import { Recomendacoes } from "@/features/relatorio/Recomendacoes";
 import { RelatorioCabecalho } from "@/features/relatorio/RelatorioCabecalho";
 import { RelatorioSecao } from "@/features/relatorio/RelatorioSecao";
@@ -80,11 +81,19 @@ export default async function RelatorioPage({
         <AcaoImprimir />
       </div>
 
+      <div className="nao-imprimir mt-6">
+        <PeriodoRelatorio
+          baseHref={`/avaliacoes/${encodeURIComponent(id)}/relatorio`}
+          periodo={periodo}
+        />
+      </div>
+
       <div className="mt-4">
         <RelatorioCabecalho
           aluno={relatorio.aluno}
           avaliacao={relatorio.avaliacao}
           periodo={relatorio.periodo}
+          resumoCmj={relatorio.resumoCmj}
         />
       </div>
 
