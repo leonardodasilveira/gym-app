@@ -1,9 +1,24 @@
-import type { CriarAvaliacaoV2DTO } from "@/features/avaliacoes/contrato-v2";
+import type { CriarAvaliacaoDTO } from "@/lib/schemas";
+import { apiFetch } from "@/features/shared/api";
 
-export type ResultadoIntegracaoV2 = { ok: true; id: string } | { ok: false; motivo: "backend-v2-indisponivel" } | { ok: false; motivo: "erro-api"; status: number; mensagem: string; issues?: { field: string; message: string }[] };
+export type ResultadoIntegracaoV2 =
+  | { ok: true; id: string }
+  | { ok: false; status: number; mensagem: string; issues?: { field: string; message: string }[] };
 
-/** Única porta de submissão. Enquanto o backend for v1, não realiza HTTP. */
-export async function enviarAvaliacaoV2(_dto: CriarAvaliacaoV2DTO): Promise<ResultadoIntegracaoV2> {
-  void _dto;
-  return { ok: false, motivo: "backend-v2-indisponivel" };
+/** Única porta de submissão. Chama POST /api/avaliacoes — o backend v2 já existe. */
+export async function enviarAvaliacaoV2(dto: CriarAvaliacaoDTO): Promise<ResultadoIntegracaoV2> {
+  const resposta = await apiFetch<{ id: string }>("/api/avaliacoes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dto),
+  });
+
+  if (resposta.ok) return { ok: true, id: resposta.dados.id };
+
+  return {
+    ok: false,
+    status: resposta.erro.status,
+    mensagem: resposta.erro.mensagem,
+    issues: resposta.erro.issues,
+  };
 }

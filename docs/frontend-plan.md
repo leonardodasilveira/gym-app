@@ -174,10 +174,11 @@ branch não publicada; construir sobre um contrato adivinhado faz descartar duas
 | B9 | A curva carga-velocidade continua no produto com ≤2 pontos? | cliente | **decidido: não.** Curva, ajuste, perfil e score **saíram do relatório**. Ver a nota de obsolescência na §2.5 e no R2 |
 | B10 | DTO final e **paths literais** de `issues[].field` no v2 | backend | **resolvido.** Os 19 paths estão listados em `api.md`; os dois do `superRefine` carga↔tempo foram verificados contra o servidor real, não deduzidos |
 
-O que **não** está bloqueado: E7 e E8 seguem seus próprios pré-requisitos. ⚠️ As
-telas de leitura já entregues (E0–E3) **deixaram de ser válidas**: o backend
-mudou a serialização em 05/08/2026, e o `npm run typecheck` acusa nelas. Era o
-efeito previsto do risco R3 — a lista do que ajustar está na PR #15.
+O que **não** está bloqueado: E7 e E8 seguem seus próprios pré-requisitos. As
+telas de leitura (E0–E3) **voltaram a ser válidas**: o backend mudou a
+serialização em 05/08/2026 (PR #15) e derrubou o typecheck nelas — era o efeito
+previsto do risco R3 —, e as PRs #17/#18 religaram os consumidores ao formato
+novo (`64e218c`, `452b5da`). `npm run typecheck` está limpo desde então.
 
 ---
 
@@ -1088,18 +1089,22 @@ com `pending`; mapeamento de 422.
 
 ---
 
-### E5 — Formulário de avaliação v2 (**bloqueada**)
+### E5 — Formulário de avaliação v2 (**concluída e integrada**)
 
-> **Status em 05/08/2026: bloqueada.** Esta descrição substitui integralmente a
-> anterior, escrita sobre o modelo v1 (array dinâmico de testes e tentativas).
-> A etapa **não pode ser iniciada** enquanto o contrato v2 não estiver publicado
-> em `docs/api.md` — ver 0.5.
+> **Status em 08/08/2026: concluída.** O backend publicou o contrato v2
+> (`c5c451a`, PR #15) aceitando **sem alteração** a forma que o front propôs em
+> `contrato-v2.ts` — mesmas chaves, mesma nullabilidade, mesmos paths de erro
+> (`src/lib/schemas.ts:17-21`). A integração real (POST, mapeamento de erro,
+> navegação pós-sucesso, remoção do aviso provisório e do rótulo "Validar
+> preenchimento", link "Nova avaliação" na ficha) foi feita nos commits
+> `6b713ed`, `3fb4bdd`, `4fbffab` e `82a2b1a`, nesta ordem. `contrato-v2.ts`
+> foi apagado — ver `docs/e5-v2-implementation-spec.md` §13.5, cujos cinco
+> critérios estão todos fechados.
 >
-> **`feat/evaluation-form` (`87e7336`) é uma implementação do modelo v1, não
-> mergeada, e não deve ser usada como fonte de verdade nem como base de
-> refatoração cega.** Serve como referência: o parser decimal, o tratamento de
-> `null` versus zero, o padrão de `useActionState`, o rascunho e o mapeamento de
-> 422 são reaproveitáveis quase sem mudança.
+> `feat/evaluation-form` (`87e7336`) continua sendo a implementação do modelo
+> v1, não mergeada e histórica — não é mais referência ativa: o que ela tinha
+> de reaproveitável (parser decimal, `null` vs. zero, `useActionState`,
+> rascunho, mapeamento de 422) já está incorporado à E5 v2 entregue.
 
 **Objetivo.** Entregar o fluxo central de escrita conforme o novo modelo aprovado
 pelo cliente.
@@ -1130,7 +1135,8 @@ pelo cliente.
   primeiro campo inválido e resumo `aria-live`.
 - **Tablet-first**: alvos de toque grandes, teclado numérico.
 - Aluno **fixado pela rota** (`/alunos/[id]/avaliacoes/nova`).
-- Retorno à ficha do aluno após sucesso — **sujeito à spec final**.
+- Retorno à ficha do aluno após sucesso: `router.refresh()` + `router.push`,
+  igual ao padrão do `AlunoForm.tsx` (`4fbffab`).
 - Data padrão é hoje em `America/Sao_Paulo`, sem deslocamento de fuso.
 
 **Removido do escopo** — era do modelo v1 e não existe mais:
@@ -1143,43 +1149,40 @@ pelo cliente.
 - Criação de aluno inline (já havia sido removida na spec da E5 v1: a rota fixa o
   aluno pelo path, e um modal perderia o formulário preenchido).
 
-**Dependências obrigatórias.** Todas precisam estar resolvidas **antes** de a
-etapa começar:
+**Dependências obrigatórias — todas fechadas em 08/08/2026:**
 
-1. **Cliente responde os bloqueios do modelo v2** — em especial B6 (nomes e
-   unidades dos quatro saltos), B7 (tempo versus VMP), B8 (granularidade da
-   velocidade) e B9 (futuro da curva). Ver
-   [`evaluation-model-v2-proposal.md`](evaluation-model-v2-proposal.md) §15.
-2. **Backend publica o contrato final em `docs/api.md`** — DTO, unidades,
-   nullabilidade e regras de consistência.
-3. **Prisma, schemas, serializadores, cálculos e seed ajustados** ao v2 e
-   mergeados. Enquanto `serializarAvaliacao` emitir `tentativas[]`, o tipo do
-   front derivado dele descreve o modelo antigo.
-4. **Paths exatos de `issues[].field` documentados**, literalmente. É o insumo
-   sem o qual o `name` dos inputs não pode ser escrito (6.4, B10).
-5. **Decisão sobre relatório e curva** (B9): se as seções dependentes da curva
-   saírem do produto, muda o que a E5 precisa coletar.
+1. ~~Cliente responde os bloqueios do modelo v2~~ — B7, B8 e B9 decididos; **B6
+   (nomes e unidades dos quatro saltos) continua aberto**, mas deixou de
+   bloquear porque o v2 não transporta unidade no payload (ver tabela em 0.5).
+2. ~~Backend publica o contrato final em `docs/api.md`~~ — `c5c451a`.
+3. ~~Prisma, schemas, serializadores, cálculos e seed ajustados ao v2~~ —
+   `c5c451a`/`534f3d8`. `serializarAvaliacao` não emite mais `tentativas[]`.
+4. ~~Paths exatos de `issues[].field` documentados~~ — 19 paths, fixados por
+   teste em `src/lib/schemas.test.ts`, listados em `api.md`.
+5. ~~Decisão sobre relatório e curva~~ — saiu do produto (`534f3d8`).
 
-Além disso, E4 continua sendo pré-requisito técnico — o padrão de formulário
-provado lá é a base deste.
+E4 seguiu sendo o pré-requisito técnico: o padrão de formulário provado lá é a
+base deste.
 
 ---
 
-### E6 — Detalhe da avaliação (**bloqueada pela E5 v2**)
+### E6 — Detalhe da avaliação (**desbloqueada, ainda não iniciada**)
 
 **Objetivo.** Fechar o ciclo de escrita e provar o round-trip do contrato.
 
-> **Status em 05/08/2026: bloqueada.** Depende da E5 v2, que depende do contrato
-> final (0.5). Como a tela **ainda não existe**, ela nasce direto no modelo v2 e
-> **não há retrabalho** — desde que não seja começada antes do contrato.
+> **Status em 08/08/2026: desbloqueada.** A E5 v2 está concluída e integrada
+> (ver acima). A tela `/avaliacoes/[id]` **ainda não existe** — confirmado na
+> lista de rotas do build — e nasce direto no modelo v2, sem retrabalho.
+> `GET/PATCH/DELETE /avaliacoes/:id` já estão prontos e no formato v2
+> (`c5c451a`); `AvaliacaoResponse` é derivado do serializador real.
 
 **Entregáveis.** `/avaliacoes/[id]` com as siglas do professor: medidas de
-amplitude, resultados de salto e resultados de velocidade **conforme o contrato
-final**; exclusão com confirmação; atalho para o relatório.
+amplitude, resultados de salto e resultados de velocidade **conforme o
+contrato v2**; exclusão com confirmação; atalho para o relatório.
 
-A composição exata do bloco de velocidade fica **a definir pelo contrato v2** —
-não assumir carga + tempo nem carga + VMP como definitivo enquanto B7 e B8 não
-forem respondidos.
+A composição do bloco de velocidade **já está fechada pelo contrato**: um par
+`cargaKg`/`tempoSegundos` por exercício (`squatJump`, `agachamento`) — B7 e B8
+decididos, ver 0.5.
 
 **Critérios de aceite.**
 - O que foi digitado na E5 aparece idêntico.
@@ -1187,7 +1190,7 @@ forem respondidos.
 - Unidades exibidas vêm do catálogo, não escritas à mão na tela.
 - Excluir pede confirmação e volta para a ficha do aluno, com a lista atualizada.
 
-**Dependências.** E5 v2 e o contrato final.
+**Dependências.** Nenhuma pendente — E5 v2 concluída e contrato v2 publicado.
 
 ---
 
@@ -1396,9 +1399,9 @@ convive com elas.
 - **O frontend ainda não implementa edição**, e isso segue sendo o previsto: a
   tela de detalhe da avaliação é entregável da **E6**, que continua no roadmap.
   Nada foi cortado — apenas ainda não foi construído.
-- **Isto não destrava a E6.** O bloqueio dela é outro e continua de pé: o
-  **contrato v2 não está fechado** (0.5, B6–B10). Um endpoint de edição no
-  modelo v1 não ajuda a construir uma tela do modelo v2.
+- **A E6 está desbloqueada em 08/08/2026**: a E5 v2 foi concluída e o contrato
+  v2 foi publicado (0.5). O `PATCH` acima já está no formato v2 — a E6 pode
+  usá-lo sem adaptação.
 
 ### R7 — Gráficos do Recharts na impressão · probabilidade **média**
 
@@ -1447,9 +1450,14 @@ nenhuma rota. Se entram, mudam lista, filtro, cadastro e cabeçalho do relatóri
 
 ### Bloqueios do modelo v2 (registrados em 05/08/2026)
 
-Abertos pela descoberta de domínio descrita em 0.5. Detalhamento e evidência de
-código em [`evaluation-model-v2-proposal.md`](evaluation-model-v2-proposal.md)
-§14 e §15. **Todos travam a E5 v2 e, por consequência, a E6.**
+> ⚠️ **Desatualizado em 08/08/2026.** B7, B8, B9 e B10 foram decididos e o
+> contrato v2 foi publicado — nenhum deles trava mais a E5 v2, que está
+> concluída (§9, E5). Só **B6 continua genuinamente aberto**, e mesmo esse
+> deixou de bloquear (ver tabela em 0.5). O texto abaixo é o registro histórico
+> de quando essas perguntas foram levantadas e referencia código v1 que já não
+> existe (`src/lib/calculos.ts`, `medidaSimples.unidade` como `z.literal("cm")`)
+> — não usar como estado atual. Migrar B7–B10 para "Decisões resolvidas",
+> abaixo, é debt de documentação pendente.
 
 **B6 — Nomes e unidades dos quatro saltos adicionais.** Provisoriamente `Salto 2`
 a `Salto 5`. A unidade é o ponto duro: `medidaSimples.unidade` é
@@ -1501,7 +1509,7 @@ inequívoca. Não são pendências: são o estado vigente.
 | # | Decisão | Estado |
 | --- | --- | --- |
 | **B1** | Janela de período do relatório | **Resolvido.** `GET /avaliacoes/:id/relatorio?semanas=` — inteiro de 1 a 520, sem default de propósito, para nenhum relatório existente mudar de número em silêncio (`api.md:221-241`, `src/lib/schemas.ts:135-142`). Recorta `historicoCmj`, `resumoCmj` e `periodo`; **não** afeta `curva` nem `score`. `periodo.semanas` diz qual janela foi aplicada, ou `null` no histórico inteiro. **Deixou de bloquear a E7** — o que resta lá é UX de apresentação do período |
-| **B5** | O MVP edita avaliação? | **Resolvido.** `PATCH /avaliacoes/:id`, bloco a bloco (`api.md:180-215`, `route.ts:42`, `atualizarAvaliacaoSchema` em `schemas.ts:89-94`). O front ainda não implementa — é entregável da E6, hoje bloqueada pelo contrato v2, não pela falta de endpoint. Ver R6 |
+| **B5** | O MVP edita avaliação? | **Resolvido.** `PATCH /avaliacoes/:id`, bloco a bloco (`api.md:180-215`, `route.ts:42`, `atualizarAvaliacaoSchema` em `schemas.ts:89-94`), já no formato v2. O front ainda não implementa — é entregável da E6, desbloqueada desde a conclusão da E5 v2. Ver R6 |
 | **D3** | `PATCH /alunos/:id` não limpava `dataNascimento` | **Resolvido** no merge `back/apoio-front`: o schema virou `.nullish()` (`src/lib/schemas.ts:109-113`) e o handler trata `null` (`api/alunos/[id]/route.ts:49-56`). **Pendência de frontend gerada por isto:** a guarda de cliente da E4 (`MENSAGEM_LIMPAR_DATA`, `features/alunos/acoes.ts`) ficou obsoleta e deve ser removida numa passagem futura |
 | **D4** | `perfil`, `nivel` e mensagens virão acentuados? | **Resolvido: sim, prontos para exibição — o front não traduz nem corrige** (`api.md:332-335`). `perfil` ∈ {`Orientado a força`, `Equilibrado`, `Orientado a velocidade`, `Dados insuficientes`}; `nivel` ∈ {`Alto`, `Médio`, `Baixo`, `Inicial`, `Sem dados`}. Continua valendo a regra oposta para o campo `error` cru, que **é** sem acento e **deve** ser traduzido por status (4.7) |
 | **D6** | O front pode importar `MEDIDAS` de `@/lib/medidas`? | **Resolvido: sim** (`api.md:364`). O módulo não tem nenhum import, é catálogo estático e fonte única da verdade. `GET /medidas` continua existindo para quem preferir buscar. Ver 5.4 |

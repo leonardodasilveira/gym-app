@@ -19,5 +19,4 @@ export type ErrosAvaliacaoV2 = Record<string, string>;
 export type EstadoAvaliacaoV2 =
   | { status: "inicial" }
   | { status: "sucesso"; id: string }
-  | { status: "pendente-integracao"; mensagem: string; valores: ValoresAvaliacaoV2 }
   | { status: "erro"; mensagem: string | null; errosPorCampo: ErrosAvaliacaoV2; valores: ValoresAvaliacaoV2; tentativa: number };
