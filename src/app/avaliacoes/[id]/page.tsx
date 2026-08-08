@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { BlocoMedidas } from "@/features/avaliacoes/BlocoMedidas";
 import { carregarAvaliacao } from "@/features/avaliacoes/dados";
+import { linhasDoBloco } from "@/features/avaliacoes/detalhe";
 import { formatarData } from "@/features/shared/formato";
 
 type Params = Promise<{ id: string }>;
@@ -72,6 +74,20 @@ export default async function AvaliacaoDetalhePage({
           Registrada em {formatarData(dataRegistro)}
         </p>
       </div>
+
+      <BlocoMedidas
+        id="amplitude"
+        titulo="Amplitude"
+        legenda="Medidas de amplitude registradas na avaliação"
+        linhas={linhasDoBloco(avaliacao, "amplitude")}
+      />
+
+      <BlocoMedidas
+        id="salto"
+        titulo="Salto"
+        legenda="Resultados de salto registrados na avaliação"
+        linhas={linhasDoBloco(avaliacao, "salto")}
+      />
     </main>
   );
 }
