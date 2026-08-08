@@ -1,5 +1,16 @@
 # E5 v2 — Formulário de avaliação (contrato definido pelo frontend)
 
+> **Concluída em 08/08/2026.** O backend aceitou o contrato proposto aqui **sem
+> alteração** (`src/lib/schemas.ts:17-21`, PR #15) e a integração real foi
+> feita nos commits `6b713ed`, `3fb4bdd`, `4fbffab` e `82a2b1a` — ver
+> `docs/frontend-plan.md`, seção E5, para o resumo. Os cinco critérios da §13.5
+> estão fechados: `contrato-v2.ts` foi apagado, `enviarAvaliacaoV2` chama
+> `POST /api/avaliacoes` de verdade, os testes cobrem 201/422/404/500/rede, e o
+> estado `pendente-integracao` não existe mais no código. Esta spec **fica como
+> registro histórico** de como o contrato foi definido antes do backend
+> publicá-lo — não descreve o estado atual do formulário; onde ela diverge do
+> código em `src/features/avaliacoes/`, o código é a fonte de verdade.
+>
 > Especificação operacional. **Não é o contrato final do backend** — é o contrato
 > **desejado pelo frontend**, autorizado pelo backend a servir de ponto de
 > partida (`docs/evaluation-model-v2-proposal.md` §17, decisão do cliente

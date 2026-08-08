@@ -1,5 +1,10 @@
 # E5 v2 — Prompt de execução
 
+> **Executado em 08/08/2026.** A E5 v2 foi entregue nos commits `6b713ed`,
+> `3fb4bdd`, `4fbffab` e `82a2b1a` — ver `docs/frontend-plan.md`, seção E5.
+> Este prompt fica como registro histórico de como a etapa provisória (formulário
+> funcional sem POST real) foi encomendada; não reflete mais o estado do código.
+>
 > Copie o conteúdo abaixo integralmente para o modelo que vai implementar a
 > E5 v2. Ele é autossuficiente: não depende de nenhuma conversa anterior.
 
