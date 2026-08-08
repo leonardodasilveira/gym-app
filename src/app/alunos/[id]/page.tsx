@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { cn } from "@/components/utils";
 import { AcoesAluno } from "@/features/alunos/AcoesAluno";
 import { AlunoCabecalho } from "@/features/alunos/AlunoCabecalho";
 import { ComparacaoAvaliacoes } from "@/features/alunos/ComparacaoAvaliacoes";
@@ -66,13 +68,29 @@ export default async function AlunoDetalhePage({
         />
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 flex flex-col gap-4">
+        <Link
+          href={`/alunos/${aluno.id}/avaliacoes/nova`}
+          className={cn(buttonVariants({}), "h-11 self-start sm:h-9")}
+        >
+          Nova avaliação
+        </Link>
         <AcoesAluno aluno={aluno} totalAvaliacoes={totalAvaliacoes} />
       </div>
 
       {avaliacoes.length === 0 ? (
         <div className="mt-8">
-          <EmptyState titulo="Nenhuma avaliação registrada ainda" />
+          <EmptyState
+            titulo="Nenhuma avaliação registrada ainda"
+            acao={
+              <Link
+                href={`/alunos/${aluno.id}/avaliacoes/nova`}
+                className={cn(buttonVariants({}), "h-11 sm:h-9")}
+              >
+                Registrar primeira avaliação
+              </Link>
+            }
+          />
         </div>
       ) : (
         <>
