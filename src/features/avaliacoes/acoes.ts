@@ -1,6 +1,6 @@
 "use client";
 
-import { schemaAvaliacaoV2Provisorio } from "./contrato-v2";
+import { criarAvaliacaoSchema } from "@/lib/schemas";
 import { enviarAvaliacaoV2 } from "./integracaoV2";
 import { formDataParaDTO, formDataParaValoresV2, issuesParaErros, zodErrorParaIssues } from "./mappers";
 import type { EstadoAvaliacaoV2 } from "./tipos";
@@ -14,7 +14,7 @@ export async function criarAvaliacaoV2(contexto: { alunoId: string }, estadoAnte
   const erro = (mensagem: string | null, errosPorCampo: Record<string, string>): EstadoAvaliacaoV2 => ({ status: "erro", mensagem, errosPorCampo, valores, tentativa: tentativaAnterior + 1 });
   const { dto, errosLexicais } = formDataParaDTO(formData, contexto.alunoId);
   if (Object.keys(errosLexicais).length) return erro(null, errosLexicais);
-  const resultado = schemaAvaliacaoV2Provisorio.safeParse(dto);
+  const resultado = criarAvaliacaoSchema.safeParse(dto);
   if (!resultado.success) { const mapeados = issuesParaErros(zodErrorParaIssues(resultado.error)); return erro(mapeados.mensagemGeral, mapeados.errosPorCampo); }
   const resposta = await enviarAvaliacaoV2(resultado.data);
   if (resposta.ok) return { status: "sucesso", id: resposta.id };
