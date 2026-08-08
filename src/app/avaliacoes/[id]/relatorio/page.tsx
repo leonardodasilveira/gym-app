@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/ui/empty-state";
-import { AcaoImprimir } from "@/features/relatorio/AcaoImprimir";
+import { AcoesRelatorio } from "@/features/relatorio/AcoesRelatorio";
 import { AvisoProvisorio } from "@/features/relatorio/AvisoProvisorio";
 import { carregarRelatorio } from "@/features/relatorio/dados";
 import { HistoricoCmjTabela } from "@/features/relatorio/HistoricoCmjTabela";
@@ -68,6 +68,7 @@ export default async function RelatorioPage({
   }
 
   const relatorio = resultado.dados;
+  const baseHref = `/avaliacoes/${encodeURIComponent(id)}/relatorio`;
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-12">
@@ -78,12 +79,16 @@ export default async function RelatorioPage({
         >
           ← Ficha do aluno
         </Link>
-        <AcaoImprimir />
+        <AcoesRelatorio
+          relatorio={relatorio}
+          baseHref={baseHref}
+          periodo={periodo}
+        />
       </div>
 
       <div className="nao-imprimir mt-6">
         <PeriodoRelatorio
-          baseHref={`/avaliacoes/${encodeURIComponent(id)}/relatorio`}
+          baseHref={baseHref}
           periodo={periodo}
         />
       </div>
