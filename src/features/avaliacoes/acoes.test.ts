@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { criarAvaliacaoV2 } from "./acoes";
+import { criarAvaliacaoV2, excluirAvaliacao } from "./acoes";
 import { mensagemDoErro } from "@/features/shared/erros";
 
 const ALUNO_ID = "8b4dfdff-ba28-4085-a11d-43062d642925";
@@ -126,5 +126,68 @@ describe("criarAvaliacaoV2", () => {
     );
 
     expect(estado).toMatchObject({ status: "erro", mensagem: mensagemDoErro(0) });
+  });
+});
+
+describe("excluirAvaliacao", () => {
+  const ID = "avaliacao-1";
+
+  it("204 -> sucesso, chamando DELETE no id codificado", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 204 }));
+
+    const resultado = await excluirAvaliacao(ID);
+
+    expect(resultado).toEqual({ ok: true, dados: undefined });
+    expect(fetchSpy).toHaveBeenCalledWith(`/api/avaliacoes/${ID}`, {
+      method: "DELETE",
+    });
+  });
+
+  it("404 -> erro com status 404 (o chamador decide tratar como sucesso)", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ error: "Avaliacao nao encontrada" }), {
+        status: 404,
+      }),
+    );
+
+    const resultado = await excluirAvaliacao(ID);
+
+    expect(resultado.ok).toBe(false);
+    if (!resultado.ok) expect(resultado.erro.status).toBe(404);
+  });
+
+  it("500 -> erro com status 500", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ error: "Erro interno" }), { status: 500 }),
+    );
+
+    const resultado = await excluirAvaliacao(ID);
+
+    expect(resultado.ok).toBe(false);
+    if (!resultado.ok) expect(resultado.erro.status).toBe(500);
+  });
+
+  it("falha de rede -> erro com status 0", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("Failed to fetch"));
+
+    const resultado = await excluirAvaliacao(ID);
+
+    expect(resultado.ok).toBe(false);
+    if (!resultado.ok) expect(resultado.erro.status).toBe(0);
+  });
+
+  it("codifica o id no caminho da requisicao", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 204 }));
+
+    await excluirAvaliacao("id com espaço");
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/api/avaliacoes/id%20com%20espa%C3%A7o",
+      { method: "DELETE" },
+    );
   });
 });

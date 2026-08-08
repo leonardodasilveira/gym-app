@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/ui/empty-state";
+import { AcoesAvaliacao } from "@/features/avaliacoes/AcoesAvaliacao";
 import { BlocoMedidas } from "@/features/avaliacoes/BlocoMedidas";
 import { carregarAvaliacao } from "@/features/avaliacoes/dados";
 import { linhasDoBloco } from "@/features/avaliacoes/detalhe";
@@ -113,6 +114,12 @@ export default async function AvaliacaoDetalhePage({
           )}
         </div>
       </section>
+
+      <AcoesAvaliacao
+        avaliacaoId={avaliacao.id}
+        alunoId={avaliacao.alunoId}
+        dataAvaliacao={avaliacao.dataAvaliacao}
+      />
     </main>
   );
 }
