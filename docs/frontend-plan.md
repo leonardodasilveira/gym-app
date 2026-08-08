@@ -1221,9 +1221,16 @@ sairia junto com a E6.
 
 ---
 
-### E7 — Período e compartilhamento
+### E7 — Período e compartilhamento (**concluída**)
 
 **Objetivo.** Fechar os fluxos 4 e 5.
+
+> **Status em 08/08/2026: concluída.** A URL é a fonte de verdade do período,
+> com opções fechadas de 8, 12, 26 e 52 semanas ou todo o histórico. O
+> relatório permanece Server Component; o seletor usa navegação real por
+> `Link`, e WhatsApp/e-mail são links acionados explicitamente pelo professor.
+> Especificação e registro de QA em
+> [`e7-implementation-spec.md`](e7-implementation-spec.md).
 
 **Entregáveis.** Seletor de período (padrão 8 semanas, editável, refletido na
 URL); botão de impressão/PDF; compartilhamento por WhatsApp (`wa.me`) e e-mail
@@ -1235,23 +1242,17 @@ URL); botão de impressão/PDF; compartilhamento por WhatsApp (`wa.me`) e e-mail
 - WhatsApp e e-mail abrem preenchidos.
 - Nenhum dado pessoal sai para serviço externo sem ação explícita do usuário.
 
-**Dependências.** **B3** (seção 12). Isolada de propósito no fim por isso.
+**Dependências.** Nenhuma — B3 foi resolvido para o MVP/demo nesta etapa (seção
+12).
 
 > **B1 saiu das dependências em 05/08/2026.** O backend implementou
 > `?semanas=` em `GET /avaliacoes/:id/relatorio` (`api.md:221-241`;
 > `relatorioQuerySchema`, `src/lib/schemas.ts:135-142`). O que **permanece aberto
-> nesta etapa é de UX, não de contrato**: como rotular a janela aplicada usando
-> `periodo.semanas` (que vem `null` no histórico inteiro), como deixar explícito
-> que o recorte afeta `historicoCmj`, `resumoCmj` e `periodo` mas **não** `curva`
-> nem `score`, e que `periodo.de`/`ate` são os extremos do dado existente, não as
-> bordas da janela pedida.
-
-> **Registrado em 05/08/2026.** Os objetivos e entregáveis desta etapa
-> **permanecem**. Mas se a resposta de **B9** retirar do produto as seções do
-> relatório que dependem da curva carga-velocidade, **a E7 precisa ser
-> reavaliada**: o que se compartilha e o que a janela de período recorta mudam
-> junto com a estrutura do relatório. Não é bloqueio novo — é um gatilho de
-> revisão, a checar quando B9 for respondida.
+> nesta etapa era de UX, não de contrato**: a implementação agora rotula a
+> janela por `periodo.semanas`, deixa explícito que o recorte afeta
+> `historicoCmj`, `resumoCmj` e `periodo`, enquanto medidas, saltos e velocidade
+> permanecem os da avaliação de referência, e trata `periodo.de`/`ate` como os
+> extremos do dado existente, não como bordas da janela pedida.
 
 ---
 
@@ -1467,10 +1468,11 @@ períodos, comparação em pontos-chave nem Pmáx — três das dez seções do 
 real (`planilha-atual.md:74-93`). Impacta E2/E3 e, pela hipótese Samozino,
 possivelmente a E5.
 
-**B3 — O que significa compartilhar.** Não existe PDF, link público,
-autenticação nem texto real. Opções: texto resumido montado pelo front, PDF pela
-impressão do browser, ou link público sem proteção (expõe dado de atleta).
-**Bloqueia E7.**
+**B3 — O que significa compartilhar.** **Resolvido para o MVP/demo em
+08/08/2026 e movido para "Decisões resolvidas".** O bloqueio registrava a escolha
+entre texto resumido montado pelo front, PDF pela impressão do browser ou link
+público sem proteção. A E7 fechou a decisão sem criar acesso público nem envio
+automático.
 
 **B4 — Filiais entram no MVP?** Não existem em `prisma/schema.prisma` nem em
 nenhuma rota. Se entram, mudam lista, filtro, cadastro e cabeçalho do relatório.
@@ -1535,7 +1537,8 @@ inequívoca. Não são pendências: são o estado vigente.
 
 | # | Decisão | Estado |
 | --- | --- | --- |
-| **B1** | Janela de período do relatório | **Resolvido.** `GET /avaliacoes/:id/relatorio?semanas=` — inteiro de 1 a 520, sem default de propósito, para nenhum relatório existente mudar de número em silêncio (`api.md:221-241`, `src/lib/schemas.ts:135-142`). Recorta `historicoCmj`, `resumoCmj` e `periodo`; **não** afeta `curva` nem `score`. `periodo.semanas` diz qual janela foi aplicada, ou `null` no histórico inteiro. **Deixou de bloquear a E7** — o que resta lá é UX de apresentação do período |
+| **B1** | Janela de período do relatório | **Resolvido.** `GET /avaliacoes/:id/relatorio?semanas=` — inteiro de 1 a 520, sem default de propósito, para nenhum relatório existente mudar de número em silêncio (`api.md:221-241`, `src/lib/schemas.ts:135-142`). Recorta `historicoCmj`, `resumoCmj` e `periodo`; medidas, saltos e velocidade permanecem os da avaliação relatada. `periodo.semanas` diz qual janela foi aplicada, ou `null` no histórico inteiro. **Implementado na E7** com conjunto fechado 8/12/26/52/todo e normalização defensiva |
+| **B3** | O que significa compartilhar | **Resolvido para o MVP/demo em 08/08/2026.** Compartilhar significa abrir o cliente escolhido pelo professor com conteúdo pré-preenchido: WhatsApp via `wa.me` e e-mail via `mailto:`, com resumo montado no frontend e link da visão atual. Nada é enviado sem clique explícito. Ficam fora: transmissão automática, API externa, upload, link público novo, rota pública sem proteção, PDF anexado e backend novo. A impressão/PDF continua sendo a da E3 |
 | **B5** | O MVP edita avaliação? | **Resolvido.** `PATCH /avaliacoes/:id`, bloco a bloco (`api.md:180-215`, `route.ts:42`, `atualizarAvaliacaoSchema` em `schemas.ts:89-94`), já no formato v2. O front ainda não implementa — a E6 foi entregue sem edição por decisão de produto (08/08/2026); segue como etapa própria, sem número no roadmap. Ver R6 |
 | **D3** | `PATCH /alunos/:id` não limpava `dataNascimento` | **Resolvido** no merge `back/apoio-front`: o schema virou `.nullish()` (`src/lib/schemas.ts:109-113`) e o handler trata `null` (`api/alunos/[id]/route.ts:49-56`). **Pendência de frontend gerada por isto:** a guarda de cliente da E4 (`MENSAGEM_LIMPAR_DATA`, `features/alunos/acoes.ts`) ficou obsoleta e deve ser removida numa passagem futura |
 | **D4** | `perfil`, `nivel` e mensagens virão acentuados? | **Resolvido: sim, prontos para exibição — o front não traduz nem corrige** (`api.md:332-335`). `perfil` ∈ {`Orientado a força`, `Equilibrado`, `Orientado a velocidade`, `Dados insuficientes`}; `nivel` ∈ {`Alto`, `Médio`, `Baixo`, `Inicial`, `Sem dados`}. Continua valendo a regra oposta para o campo `error` cru, que **é** sem acento e **deve** ser traduzido por status (4.7) |
